@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a1a"/>
+      <stop offset="100%" stop-color="#1a1a3a"/>
+    </linearGradient>
+    
+    <!-- Planet Gradient -->
+    <radialGradient id="planetGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#4a9eff"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </radialGradient>
+    
+    <!-- Ring Gradient -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b6b"/>
+      <stop offset="100%" stop-color="#ff9f43"/>
+    </linearGradient>
+    
+    <!-- Glow Filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Circular Clip -->
+    <clipPath id="circleClip">
+      <circle cx="256" cy="256" r="256"/>
+    </clipPath>
+  </defs>
+  
+  <g clip-path="url(#circleClip)">
+    <!-- Space Background -->
+    <rect width="512" height="512" fill="url(#bgGrad)"/>
+    
+    <!-- Stars (White & Gold) -->
+    <circle cx="80" cy="120" r="2" fill="#ffffff" opacity="0.8"/>
+    <circle cx="420" cy="90" r="1.5" fill="#ffd700" opacity="0.9"/>
+    <circle cx="150" cy="380" r="2.5" fill="#ffffff" opacity="0.7"/>
+    <circle cx="380" cy="400" r="1.5" fill="#ffd700" opacity="0.8"/>
+    <circle cx="256" cy="60" r="2" fill="#ffffff" opacity="0.6"/>
+    <circle cx="100" cy="250" r="1.5" fill="#ffd700" opacity="0.7"/>
+    <circle cx="400" cy="220" r="2" fill="#ffffff" opacity="0.9"/>
+    <circle cx="300" cy="450" r="1.5" fill="#ffd700" opacity="0.8"/>
+    <circle cx="180" cy="180" r="2" fill="#ffffff" opacity="0.5"/>
+    <circle cx="350" cy="150" r="1.5" fill="#ffd700" opacity="0.6"/>
+    
+    <!-- Central Planet -->
+    <circle cx="256" cy="256" r="80" fill="url(#planetGrad)" filter="url(#glow)"/>
+    
+    <!-- Tilted Ring -->
+    <ellipse cx="256" cy="256" rx="160" ry="40" fill="none" stroke="url(#ringGrad)" stroke-width="12" transform="rotate(-25 256 256)" filter="url(#glow)"/>
+    
+    <!-- Small Moon -->
+    <circle cx="380" cy="180" r="12" fill="#a0a0c0" opacity="0.8"/>
+  </g>
+</svg>

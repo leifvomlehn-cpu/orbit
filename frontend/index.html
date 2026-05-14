@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a1a">
+    <title>Orbital Simulator</title>
+    <!-- Favicon Einbindung -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <div class="orbit-loader">
+                <div class="sun-loader"></div>
+                <div class="planet-loader"></div>
+            </div>
+            <h2>Orbital Simulator</h2>
+            <p>Lade Himmelskörper...</p>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app" class="hidden">
+        <div id="main-content">
+            <div id="canvas-container">
+                <canvas id="orbit-canvas"></canvas>
+                <canvas id="overlay-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header id="header">
+            <div class="header-left">
+                <button id="sidebar-toggle" class="icon-btn sidebar-toggle-btn" aria-label="Menü">☰</button>
+                <h1>🌌 Orbital Simulator</h1>
+                <span class="subtitle">Erkunde unser Sonnensystem</span>
+            </div>
+            <div class="header-right">
+                <div class="time-display">
+                    <span id="current-date">--</span>
+                </div>
+                <button id="help-btn" class="icon-btn" title="Hilfe">❓</button>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h2>Himmelskörper</h2>
+                <input type="text" id="search-input" class="search-input" placeholder="Suche..." autocomplete="off">
+            </div>
+            <div class="category-filters">
+                <button class="filter-btn active" data-category="all">Alle</button>
+                <button class="filter-btn" data-category="planets">Planeten</button>
+                <button class="filter-btn" data-category="dwarf_planets">Zwergplaneten</button>
+                <button class="filter-btn" data-category="tnos">TNOs</button>
+                <button class="filter-btn" data-category="extreme">Extreme</button>
+            </div>
+            <div id="body-list" class="body-list" role="list"></div>
+            <div class="sidebar-footer">
+                <button id="planet9-btn" class="special-btn">🪐 Planet 9 Suche</button>
+            </div>
+        </aside>
+
+        <!-- View Controls (Rechts Oben) -->
+        <div class="view-controls">
+            <button id="view-2d" class="view-btn active">2D</button>
+            <button id="view-3d" class="view-btn">3D</button>
+        </div>
+
+        <!-- Scale Indicator (Rechts Unten, über der Leiste) -->
+        <div class="scale-indicator">
+            <span id="scale-value">1 AU = 15.0 px</span>
+        </div>
+
+        <!-- Time Controls (Unten - Inklusive Zoom) -->
+        <div id="time-controls">
+            <!-- Zoom Controls (Links) -->
+            <div class="zoom-controls-inline">
+                <button id="zoom-in" class="time-btn" title="Vergrößern">+</button>
+                <button id="zoom-out" class="time-btn" title="Verkleinern">−</button>
+                <button id="zoom-reset" class="time-btn" title="Zurücksetzen">⟲</button>
+            </div>
+
+            <!-- Time Buttons (Mitte) -->
+            <div class="time-buttons">
+                <button id="time-back" class="time-btn" title="-30 Tage">⏪</button>
+                <button id="time-month-back" class="time-btn" title="-1 Monat">◀</button>
+                <button id="time-rewind" class="time-btn" title="-1 Jahr">⏮</button>
+                <button id="time-play" class="time-btn play-btn" title="Abspielen">▶️</button>
+                <button id="time-fast-forward" class="time-btn" title="+1 Jahr">⏭</button>
+                <button id="time-month-forward" class="time-btn" title="+1 Monat">▶</button>
+                <button id="time-forward" class="time-btn" title="+30 Tage">⏩</button>
+            </div>
+
+            <!-- Speed & Date (Rechts) -->
+            <div class="speed-control-group">
+                <div class="speed-control">
+                    <label for="speed-slider">Speed:</label>
+                    <input type="range" id="speed-slider" min="25" max="5000" value="50" step="1">
+                    <span id="speed-value">50 T/s</span>
+                </div>
+                <div class="date-input">
+                    <input type="date" id="date-picker">
+                    <button id="today-btn" class="small-btn">Heute</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div id="info-panel">
+            <div class="info-header">
+                <h2 id="info-title">Details</h2>
+                <button id="info-close" class="close-btn" aria-label="Schließen">×</button>
+            </div>
+            <div id="info-content">
+                <div class="info-placeholder">
+                    <p>Wähle einen Himmelskörper aus der Liste oder klicke auf einen Planeten.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Planet 9 Panel -->
+        <div id="planet9-panel" class="hidden">
+            <div class="panel-header">
+                <h2>🔍 Planet 9 Suche</h2>
+                <button id="planet9-close" class="close-btn" aria-label="Schließen">×</button>
+            </div>
+            <div id="planet9-content">
+                <div class="planet9-intro">
+                    <h3>Was ist Planet 9?</h3>
+                    <p>Ein hypothetischer neunter Planet im äußeren Sonnensystem, der durch gravitative Anomalien bei TNOs vorhergesagt wird.</p>
+                </div>
+                <div class="planet9-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Masse</span>
+                        <span class="stat-value highlight">~5-10 Erdmassen</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Umlaufzeit</span>
+                        <span class="stat-value">~10.000-20.000 Jahre</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Entfernung</span>
+                        <span class="stat-value">~400-800 AU</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Exzentrizität</span>
+                        <span class="stat-value">~0.2-0.5</span>
+                    </div>
+                </div>
+                <div class="planet9-evidence">
+                    <h3>Indizien</h3>
+                    <ul>
+                        <li>Gruppierung der Bahnen extremer TNOs</li>
+                        <li>Neigung der Bahnebenen</li>
+                        <li>Fehlende große Objekte im Kuipergürtel</li>
+                    </ul>
+                </div>
+                <div class="planet9-search-zone">
+                    <h3>Suchzone</h3>
+                    <div class="constellation-grid">
+                        <div class="constellation">Widder</div>
+                        <div class="constellation">Stier</div>
+                        <div class="constellation">Walfisch</div>
+                        <div class="constellation">Eridanus</div>
+                    </div>
+                </div>
+                <div class="planet9-timeline">
+                    <h3>Entdeckungsgeschichte</h3>
+                    <div class="timeline-item">
+                        <span class="year">2014</span>
+                        <span class="event">Erste Hinweise durch Chad Trujillo & Scott Sheppard</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="year">2016</span>
+                        <span class="event">Batygin & Brown veröffentlichen detaillierte Vorhersage</span>
+                    </div>
+                    <div class="timeline-item future">
+                        <span class="year">2026+</span>
+                        <span class="event">Vera C. Rubin Observatory beginnt Suche</span>
+                    </div>
+                </div>
+                <button id="show-planet9-orbit" class="action-btn">🪐 Zeige Planet 9 Vorhersage-Orbit</button>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div id="help-modal" class="modal hidden" role="dialog" aria-modal="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📖 Hilfe & Bedienung</h2>
+                    <button class="modal-close close-btn" aria-label="Schließen">×</button>
+                </div>
+                <div class="modal-body">
+                    <section>
+                        <h3>🖱️ Maus & Touch</h3>
+                        <ul>
+                            <li><strong>Klick:</strong> Himmelskörper auswählen</li>
+                            <li><strong>Doppelklick:</strong> Kamera auf Objekt zentrieren</li>
+                            <li><strong>Ziehen:</strong> Ansicht verschieben</li>
+                            <li><strong>Mausrad / Pinch:</strong> Zoomen</li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>⌨️ Tastenkürzel</h3>
+                        <ul>
+                            <li><strong>Leertaste:</strong> Animation starten/pausieren</li>
+                            <li><strong>Pfeiltasten:</strong> Zeit vor/zurück</li>
+                            <li><strong>+/-:</strong> Zoomen</li>
+                            <li><strong>R:</strong> Ansicht zurücksetzen</li>
+                            <li><strong>ESC:</strong> Panels schließen</li>
+                        </ul>
+                    </section>
+                    <section>
+                        <h3>📱 iPad & Mobile</h3>
+                        <p>Alle Bedienelemente sind für Touch optimiert (min. 44x44px). Die Menüs blenden sich automatisch nach 5 Sekunden Inaktivität aus, um die volle Sicht auf das Sonnensystem zu geben.</p>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="tooltip" class="tooltip hidden">
+            <div class="tooltip-name"></div>
+            <div class="tooltip-info"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
