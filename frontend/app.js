@@ -65,6 +65,13 @@ const AppState = {
     showPlanet9: false,
     planet9Data: null,
     
+    // N-Body Comparison (Sprint A.2)
+    showNbody: false,
+    nbodyYears: 100,
+    nbodyCache: {},
+    nbodyLoading: false,
+    nbodyDebounce: null,
+    
     // UI state
     isLoading: true,
     sidebarOpen: false,
@@ -264,6 +271,15 @@ function cacheDOMElements() {
     DOM.showPlanet9OrbitBtn = document.getElementById('show-planet9-orbit');
     
     DOM.helpModal = document.getElementById('help-modal');
+    
+    // N-Body Comparison (Sprint A.2)
+    DOM.nbodyToggle = document.getElementById('nbody-toggle');
+    DOM.nbodyConfig = document.getElementById('nbody-config');
+    DOM.nbodyYearsSlider = document.getElementById('nbody-years');
+    DOM.nbodyYearsValue = document.getElementById('nbody-years-value');
+    DOM.driftDisplay = document.getElementById('nbody-drift-display');
+    DOM.driftValue = document.getElementById('drift-value');
+    DOM.driftBody = document.getElementById('drift-body');
     DOM.tooltip = document.getElementById('tooltip');
 }
 
@@ -415,6 +431,11 @@ function render() {
     
     // Draw orbits
     drawOrbits(ctx);
+    
+    // Draw N-Body comparison orbit if enabled (Sprint A.2)
+    if (AppState.showNbody && AppState.selectedBody) {
+        drawNbodyOrbit(ctx, AppState.selectedBody.id);
+    }
     
     // Draw Planet-9 prediction zone if enabled
     if (AppState.showPlanet9) {
@@ -1168,6 +1189,11 @@ function selectBody(body) {
     renderBodyList();
     render();
     showInfoPanel(body);
+    
+    // N-Body: bei aktivem Vergleich Bahn fuer neuen Koerper laden (Sprint A.2)
+    if (AppState.showNbody) {
+        fetchAndDrawNbody(body.id, AppState.nbodyYears);
+    }
 }
 
 /**
@@ -1307,6 +1333,14 @@ function setupEventListeners() {
     window.addEventListener('touchstart', resetUIIdleTimer, { passive: true });
     window.addEventListener('keydown', resetUIIdleTimer, { passive: true });
     window.addEventListener('click', resetUIIdleTimer, { passive: true });
+    
+    // N-Body Comparison (Sprint A.2)
+    if (DOM.nbodyToggle) {
+        DOM.nbodyToggle.addEventListener('click', toggleNbody);
+    }
+    if (DOM.nbodyYearsSlider) {
+        DOM.nbodyYearsSlider.addEventListener('input', handleNbodyYearsChange);
+    }
 }
 
 /**
@@ -1809,3 +1843,181 @@ function handleKeyDown(e) {
 
 // Start the application
 window.addEventListener('DOMContentLoaded', init);
+
+// =============================================================================
+// N-BODY COMPARISON MODE (Sprint A.2)
+// =============================================================================
+
+function toggleNbody() {
+    AppState.showNbody = !AppState.showNbody;
+    DOM.nbodyToggle.classList.toggle('active', AppState.showNbody);
+    DOM.nbodyConfig.classList.toggle('hidden', !AppState.showNbody);
+    
+    if (AppState.showNbody && AppState.selectedBody) {
+        fetchAndDrawNbody(AppState.selectedBody.id, AppState.nbodyYears);
+    } else {
+        DOM.driftDisplay.classList.add('hidden');
+        render();
+    }
+}
+
+function handleNbodyYearsChange(e) {
+    AppState.nbodyYears = parseInt(e.target.value);
+    DOM.nbodyYearsValue.textContent = AppState.nbodyYears;
+    
+    if (AppState.nbodyDebounce) clearTimeout(AppState.nbodyDebounce);
+    AppState.nbodyDebounce = setTimeout(() => {
+        if (AppState.showNbody && AppState.selectedBody) {
+            fetchAndDrawNbody(AppState.selectedBody.id, AppState.nbodyYears);
+        }
+    }, 400);
+}
+
+async function fetchAndDrawNbody(bodyId, years) {
+    const cacheKey = bodyId + '_' + years;
+    
+    if (AppState.nbodyCache[cacheKey]) {
+        updateDriftDisplay(bodyId, years);
+        render();
+        return;
+    }
+    
+    AppState.nbodyLoading = true;
+    DOM.driftDisplay.classList.remove('hidden');
+    DOM.driftValue.textContent = 'Lade...';
+    const bodyName = AppState.bodiesMap[bodyId] ? AppState.bodiesMap[bodyId].name_de : bodyId;
+    DOM.driftBody.textContent = bodyName + ' \u00b7 ' + years + ' Jahre';
+    
+    const start = new Date();
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + years);
+    
+    const totalDays = years * 365.25;
+    let stepDays = Math.max(1, Math.round(totalDays / 4000));
+    if (years > 500) stepDays = Math.max(stepDays, 5);
+    const nSteps = Math.floor(totalDays / stepDays);
+    const sampleEvery = Math.max(1, Math.floor(nSteps / 200));
+    
+    const bodies = ['sun', 'jupiter', 'saturn', 'uranus', 'neptune'];
+    if (bodies.indexOf(bodyId) === -1) bodies.push(bodyId);
+    
+    try {
+        const response = await fetch(CONFIG.API_BASE + '/simulate/nbody', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                bodies: bodies,
+                start_time: start.toISOString().replace(/\.\d+Z$/, ''),
+                end_time: end.toISOString().replace(/\.\d+Z$/, ''),
+                step_days: stepDays,
+                sample_every: sampleEvery,
+            }),
+        });
+        
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        const sim = data.simulation;
+        const bodyIdx = sim.body_ids.indexOf(bodyId);
+        const sunIdx = sim.body_ids.indexOf('sun');
+        
+        const points = sim.positions.map(snapshot => {
+            const b = snapshot[bodyIdx];
+            const s = snapshot[sunIdx];
+            return { x: b[0] - s[0], y: b[1] - s[1], z: b[2] - s[2] };
+        });
+        
+        AppState.nbodyCache[cacheKey] = {
+            years: years,
+            points: points,
+            timestamps: sim.timestamps,
+            metadata: sim.metadata,
+        };
+        
+        updateDriftDisplay(bodyId, years);
+        render();
+    } catch (err) {
+        console.error('N-Body fetch failed:', err);
+        DOM.driftValue.textContent = 'Fehler';
+        DOM.driftBody.textContent = err.message;
+    } finally {
+        AppState.nbodyLoading = false;
+    }
+}
+
+function updateDriftDisplay(bodyId, years) {
+    const cache = AppState.nbodyCache[bodyId + '_' + years];
+    if (!cache) return;
+    
+    const body = AppState.bodiesMap[bodyId];
+    if (!body) return;
+    
+    const endDate = new Date(cache.timestamps[cache.timestamps.length - 1]);
+    const keplerPos = calculateBodyPosition(body, endDate);
+    if (!keplerPos) {
+        DOM.driftValue.textContent = '--';
+        return;
+    }
+    
+    const nbodyPos = cache.points[cache.points.length - 1];
+    const dx = keplerPos.x - nbodyPos.x;
+    const dy = keplerPos.y - nbodyPos.y;
+    const dz = keplerPos.z - nbodyPos.z;
+    const drift = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    
+    let display;
+    if (drift < 0.001) {
+        display = (drift * 149597870.7 / 1e6).toFixed(2) + ' Mio km';
+    } else if (drift < 0.01) {
+        display = drift.toFixed(5) + ' AU';
+    } else {
+        display = drift.toFixed(4) + ' AU';
+    }
+    
+    DOM.driftValue.textContent = display;
+    DOM.driftBody.textContent = body.name_de + ' \u00b7 ' + years + ' Jahre';
+    DOM.driftDisplay.classList.remove('hidden');
+}
+
+function drawNbodyOrbit(ctx, bodyId) {
+    const cache = AppState.nbodyCache[bodyId + '_' + AppState.nbodyYears];
+    if (!cache) return;
+    
+    const body = AppState.bodiesMap[bodyId];
+    if (!body) return;
+    
+    const scale = AppState.scale;
+    const sunX = AppState.offsetX;
+    const sunY = AppState.offsetY;
+    
+    ctx.strokeStyle = lightenColor(body.color, 0.4);
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 4]);
+    ctx.globalAlpha = 0.85;
+    
+    ctx.beginPath();
+    cache.points.forEach((p, i) => {
+        let x = p.x, y = p.y, z = p.z;
+        if (AppState.viewMode === '3d') {
+            const r = rotate3D(x, y, z);
+            x = r.x;
+            y = r.y;
+        }
+        const sx = sunX + x * scale;
+        const sy = sunY + y * scale;
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
+}
+
+function lightenColor(hex, factor) {
+    if (!hex || !hex.startsWith('#') || hex.length !== 7) return hex || '#ffffff';
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const mix = (c) => Math.round(c + (255 - c) * factor);
+    return 'rgb(' + mix(r) + ', ' + mix(g) + ', ' + mix(b) + ')';
+}
+

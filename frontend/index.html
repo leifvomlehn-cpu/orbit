@@ -71,6 +71,27 @@
             <button id="view-3d" class="view-btn">3D</button>
         </div>
 
+        <!-- N-Body Comparison Controls (Sprint A.2) -->
+        <div class="nbody-controls">
+            <button id="nbody-toggle" class="nbody-btn" title="Kepler-Bahn vs N-Body-Bahn vergleichen">
+                &#9883; N-Body Vergleich
+            </button>
+            <div id="nbody-config" class="nbody-config hidden">
+                <label for="nbody-years">
+                    Zeitraum: <span id="nbody-years-value">100</span> Jahre
+                </label>
+                <input type="range" id="nbody-years" min="10" max="1000" value="100" step="10">
+                <div class="nbody-hint">Waehle einen Koerper aus, um den Bahn-Drift zu sehen. Sednoide/TNOs zeigen die groessten Effekte.</div>
+            </div>
+        </div>
+
+        <!-- N-Body Drift Display -->
+        <div id="nbody-drift-display" class="drift-display hidden">
+            <div class="drift-label">Drift Kepler vs N-Body</div>
+            <div class="drift-value" id="drift-value">--</div>
+            <div class="drift-body" id="drift-body">--</div>
+        </div>
+
         <!-- Scale Indicator (Rechts Unten, über der Leiste) -->
         <div class="scale-indicator">
             <span id="scale-value">1 AU = 15.0 px</span>

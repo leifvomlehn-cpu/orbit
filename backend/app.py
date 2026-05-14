@@ -121,7 +121,7 @@ def health_check() -> Response:
         'status': 'healthy',
         'timestamp': _now_utc().isoformat(),
         'service': 'orbital-backend',
-        'version': '1.0.0',
+        'version': '1.1.0',
         'bodies_count': len(CELESTIAL_BODIES) + len(TNO_BODIES),
         'cache_status': 'active'
     })

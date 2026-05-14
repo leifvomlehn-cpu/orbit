@@ -1269,3 +1269,118 @@ body {
 .mt-md { margin-top: var(--spacing-md); }
 .mb-sm { margin-bottom: var(--spacing-sm); }
 .mb-md { margin-bottom: var(--spacing-md); }
+/* ============================================================================
+   N-Body Comparison (Sprint A.2)
+   ============================================================================ */
+
+.nbody-controls {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 95;
+    max-width: 260px;
+}
+
+.nbody-btn {
+    background: rgba(155, 89, 182, 0.25);
+    color: #fff;
+    border: 1px solid rgba(155, 89, 182, 0.6);
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 140px;
+    min-height: 44px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nbody-btn:hover {
+    background: rgba(155, 89, 182, 0.4);
+    transform: translateY(-1px);
+}
+
+.nbody-btn.active {
+    background: rgba(155, 89, 182, 0.8);
+    border-color: #9b59b6;
+    box-shadow: 0 0 12px rgba(155, 89, 182, 0.5);
+}
+
+.nbody-config {
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(155, 89, 182, 0.4);
+    padding: 12px;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 12px;
+}
+
+.nbody-config label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.nbody-config input[type="range"] {
+    width: 100%;
+    accent-color: #9b59b6;
+    margin: 4px 0;
+}
+
+.nbody-hint {
+    margin-top: 8px;
+    font-size: 10px;
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+.drift-display {
+    position: fixed;
+    bottom: 120px;
+    right: 20px;
+    background: rgba(155, 89, 182, 0.18);
+    border: 1px solid rgba(155, 89, 182, 0.5);
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12px;
+    min-width: 180px;
+    z-index: 95;
+    backdrop-filter: blur(6px);
+}
+
+.drift-label {
+    opacity: 0.7;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.drift-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: #c39bd3;
+    margin: 4px 0 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.drift-body {
+    opacity: 0.85;
+    font-size: 11px;
+}
+
+@media (max-width: 768px) {
+    .nbody-controls {
+        top: auto;
+        bottom: 200px;
+        right: 10px;
+        max-width: 200px;
+    }
+    .drift-display {
+        bottom: 150px;
+        right: 10px;
+        min-width: 140px;
+    }
+}
