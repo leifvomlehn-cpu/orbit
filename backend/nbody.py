@@ -22,6 +22,19 @@ from typing import Dict, List, Tuple, Any, Optional
 
 import numpy as np
 
+try:
+    from numba import njit
+    HAS_NUMBA = True
+except ImportError:
+    HAS_NUMBA = False
+    def njit(*args, **kwargs):
+        # Pass-through Fallback wenn numba nicht installiert
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        def decorator(f):
+            return f
+        return decorator
+
 from physics import solve_kepler, calculate_true_anomaly, calculate_mean_anomaly
 
 
@@ -122,6 +135,87 @@ def verlet_step(state: np.ndarray, gms: np.ndarray, dt: float) -> np.ndarray:
     return out
 
 
+@njit(cache=True, fastmath=True)
+def _accelerations_jit(pos, gms, out):
+    """In-place Beschleunigungs-Loop fuer Numba.
+
+    Pure-loop-Variante; bei N<=12 deutlich schneller als die numpy-broadcast-
+    Version weil keine 3D-Intermediates allokiert werden und JIT die Inner-
+    Loop direkt nach Maschinencode kompiliert.
+    """
+    N = pos.shape[0]
+    for i in range(N):
+        out[i, 0] = 0.0
+        out[i, 1] = 0.0
+        out[i, 2] = 0.0
+    for i in range(N):
+        for j in range(N):
+            if i == j:
+                continue
+            dx = pos[j, 0] - pos[i, 0]
+            dy = pos[j, 1] - pos[i, 1]
+            dz = pos[j, 2] - pos[i, 2]
+            r2 = dx * dx + dy * dy + dz * dz + SOFTENING_AU2
+            inv_r3 = r2 ** (-1.5)
+            out[i, 0] += gms[j] * dx * inv_r3
+            out[i, 1] += gms[j] * dy * inv_r3
+            out[i, 2] += gms[j] * dz * inv_r3
+
+
+@njit(cache=True, fastmath=True)
+def _verlet_integrate_jit(pos, vel, gms, dt, n_steps, sample_every,
+                          snap_pos, snap_vel, snap_days):
+    """Kompletter Verlet-Loop in einem JIT-Kernel.
+
+    Schreibt Snapshots in vorallokierte Arrays. Returns: tatsaechliche
+    Snapshot-Anzahl (initial + sampled + finaler).
+    """
+    N = pos.shape[0]
+    acc = np.zeros((N, 3))
+
+    for i in range(N):
+        snap_pos[0, i, 0] = pos[i, 0]
+        snap_pos[0, i, 1] = pos[i, 1]
+        snap_pos[0, i, 2] = pos[i, 2]
+        snap_vel[0, i, 0] = vel[i, 0]
+        snap_vel[0, i, 1] = vel[i, 1]
+        snap_vel[0, i, 2] = vel[i, 2]
+    snap_days[0] = 0.0
+    snap_idx = 1
+    elapsed = 0.0
+
+    _accelerations_jit(pos, gms, acc)
+
+    for step in range(n_steps):
+        for i in range(N):
+            vel[i, 0] += 0.5 * dt * acc[i, 0]
+            vel[i, 1] += 0.5 * dt * acc[i, 1]
+            vel[i, 2] += 0.5 * dt * acc[i, 2]
+        for i in range(N):
+            pos[i, 0] += dt * vel[i, 0]
+            pos[i, 1] += dt * vel[i, 1]
+            pos[i, 2] += dt * vel[i, 2]
+        _accelerations_jit(pos, gms, acc)
+        for i in range(N):
+            vel[i, 0] += 0.5 * dt * acc[i, 0]
+            vel[i, 1] += 0.5 * dt * acc[i, 1]
+            vel[i, 2] += 0.5 * dt * acc[i, 2]
+
+        elapsed += dt
+        if (step + 1) % sample_every == 0 or step == n_steps - 1:
+            for i in range(N):
+                snap_pos[snap_idx, i, 0] = pos[i, 0]
+                snap_pos[snap_idx, i, 1] = pos[i, 1]
+                snap_pos[snap_idx, i, 2] = pos[i, 2]
+                snap_vel[snap_idx, i, 0] = vel[i, 0]
+                snap_vel[snap_idx, i, 1] = vel[i, 1]
+                snap_vel[snap_idx, i, 2] = vel[i, 2]
+            snap_days[snap_idx] = elapsed
+            snap_idx += 1
+
+    return snap_idx
+
+
 def total_energy(state: np.ndarray, gms: np.ndarray) -> float:
     """Gesamtenergie (kin + pot) - sollte ueber Integration konstant bleiben.
 
@@ -186,24 +280,44 @@ def simulate_nbody(
         state[:, :3] -= com_pos
         state[:, 3:] -= com_vel
 
-    if integrator == 'verlet':
-        step_fn = verlet_step
-    elif integrator == 'rk4':
-        step_fn = rk4_step
-    else:
+    if integrator not in ('rk4', 'verlet'):
         raise ValueError(f"Unknown integrator: {integrator!r} (use rk4 or verlet)")
 
     n_steps = max(1, int(round(duration_days / step_days)))
 
-    days_at: List[float] = [0.0]
-    states: List[np.ndarray] = [state.copy()]
-    elapsed = 0.0
-    for step in range(n_steps):
-        state = step_fn(state, gms, step_days)
-        elapsed += step_days
-        if (step + 1) % sample_every == 0 or step == n_steps - 1:
-            days_at.append(elapsed)
-            states.append(state.copy())
+    if integrator == 'verlet' and HAS_NUMBA:
+        # Numba fast-path: kompletter 365k-step Loop in einem JIT-Kernel.
+        # Bei N=8/100k Jahre ~5-10x schneller als der numpy-Pfad.
+        pos = np.ascontiguousarray(state[:, :3].copy())
+        vel = np.ascontiguousarray(state[:, 3:].copy())
+        gms_c = np.ascontiguousarray(gms)
+        n_samples_max = (n_steps // max(1, sample_every)) + 2
+        snap_pos = np.zeros((n_samples_max, N, 3))
+        snap_vel = np.zeros((n_samples_max, N, 3))
+        snap_days = np.zeros(n_samples_max)
+        actual = _verlet_integrate_jit(
+            pos, vel, gms_c, float(step_days), int(n_steps), int(sample_every),
+            snap_pos, snap_vel, snap_days,
+        )
+        days_at = snap_days[:actual].tolist()
+        states = []
+        for k in range(actual):
+            s = np.empty((N, 6))
+            s[:, :3] = snap_pos[k]
+            s[:, 3:] = snap_vel[k]
+            states.append(s)
+    else:
+        # Pure-Python Pfad (RK4 oder Verlet ohne Numba)
+        step_fn = verlet_step if integrator == 'verlet' else rk4_step
+        days_at: List[float] = [0.0]
+        states: List[np.ndarray] = [state.copy()]
+        elapsed = 0.0
+        for step in range(n_steps):
+            state = step_fn(state, gms, step_days)
+            elapsed += step_days
+            if (step + 1) % sample_every == 0 or step == n_steps - 1:
+                days_at.append(elapsed)
+                states.append(state.copy())
 
     def _fmt(days: float) -> str:
         # Overflow-Schutz: Python datetime kann max year 9999
@@ -230,3 +344,24 @@ def simulate_nbody(
             'duration_days': duration_days,
         },
     }
+
+
+def _warmup_numba():
+    """JIT pre-compile beim Modul-Import (kein Cold-Start beim ersten User-Call).
+
+    cache=True schreibt das kompilierte Modul ins __pycache__/. Erstes
+    Container-Start nach --no-cache build kompiliert (3-5s), alle weiteren
+    Worker-Starts laden sub-millisekunde aus dem Cache.
+    """
+    if not HAS_NUMBA:
+        return
+    pos = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    vel = np.zeros((2, 3))
+    gms_w = np.array([1.0, 0.1])
+    sp = np.zeros((3, 2, 3))
+    sv = np.zeros((3, 2, 3))
+    sd = np.zeros(3)
+    _verlet_integrate_jit(pos, vel, gms_w, 1.0, 1, 1, sp, sv, sd)
+
+
+_warmup_numba()

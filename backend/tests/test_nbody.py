@@ -124,6 +124,61 @@ class TestKeplerBaseline:
         assert diff < 0.001, f"RK4 vs Kepler Erde 10yr: {diff} AU"
 
 
+class TestNumbaVerletEquivalence:
+    """Numba-Fastpath muss numerisch (bis FP-Praezision) gleich numpy-Verlet sein."""
+
+    def _sun_earth_bodies(self):
+        return [
+            {
+                'id': 'sun',
+                'orbital_elements': {'semi_major_axis_au': 0.0, 'eccentricity': 0.0,
+                                     'orbital_period_days': 1.0,
+                                     'inclination_deg': 0.0,
+                                     'longitude_ascending_node_deg': 0.0,
+                                     'argument_perihelion_deg': 0.0,
+                                     'mean_anomaly_deg': 0.0},
+                'physical_data': {'mass_kg': 1.989e30},
+            },
+            {
+                'id': 'earth',
+                'orbital_elements': {'semi_major_axis_au': 1.0, 'eccentricity': 0.0167,
+                                     'orbital_period_days': 365.25,
+                                     'inclination_deg': 0.0,
+                                     'longitude_ascending_node_deg': 0.0,
+                                     'argument_perihelion_deg': 0.0,
+                                     'mean_anomaly_deg': 0.0},
+                'physical_data': {'mass_kg': 5.972e24},
+            },
+        ]
+
+    def test_numba_available(self):
+        from nbody import HAS_NUMBA
+        assert HAS_NUMBA, "numba muss in der Container-Umgebung installiert sein"
+
+    def test_numba_verlet_matches_numpy_verlet(self, monkeypatch):
+        import nbody
+        import numpy as np
+        from datetime import datetime
+        bodies = self._sun_earth_bodies()
+
+        r_numba = nbody.simulate_nbody(
+            bodies, datetime(2026, 1, 1),
+            duration_days=365.25, step_days=1.0, sample_every=30,
+            integrator='verlet',
+        )
+        monkeypatch.setattr(nbody, 'HAS_NUMBA', False)
+        r_numpy = nbody.simulate_nbody(
+            bodies, datetime(2026, 1, 1),
+            duration_days=365.25, step_days=1.0, sample_every=30,
+            integrator='verlet',
+        )
+        pos_numba = np.array(r_numba['positions'][-1])
+        pos_numpy = np.array(r_numpy['positions'][-1])
+        max_diff = float(np.abs(pos_numba - pos_numpy).max())
+        # loop-vs-broadcast unterschiedliche Summen-Reihenfolge: muss FP-eng sein
+        assert max_diff < 1e-10, f"numba/numpy diff: {max_diff:.2e}"
+
+
 class TestVerletStability:
     """Verlet sollte ueber lange Sims energie-stabil bleiben (symplektisch)."""
 
