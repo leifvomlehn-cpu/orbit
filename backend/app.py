@@ -509,6 +509,74 @@ def run_simulation() -> Response:
     })
 
 
+@app.route('/api/simulate/nbody', methods=['POST'])
+@handle_errors
+def run_nbody_simulation() -> Response:
+    """Echte N-Body-Simulation via RK4 im baryzentrischen Koordinatensystem.
+
+    Request-JSON:
+        bodies: List[str]  (default: ['sun','jupiter','saturn','earth'])
+        start_time: ISO 8601
+        end_time: ISO 8601
+        step_days: float (0.01-365, default 1.0)
+        sample_every: int (1-1000, default 1)
+    """
+    from nbody import simulate_nbody
+
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            'error': 'Keine Daten erhalten',
+            'message': 'Bitte sende JSON-Daten im Request-Body.'
+        }), 400
+
+    body_ids = data.get('bodies', ['sun', 'jupiter', 'saturn', 'earth'])
+    if not body_ids:
+        return jsonify({'error': 'Keine Koerper angegeben'}), 400
+
+    try:
+        start_time = datetime.fromisoformat(
+            data.get('start_time', _now_utc().isoformat()).replace('Z', '+00:00')
+        ).replace(tzinfo=None)
+        end_time = datetime.fromisoformat(
+            data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()).replace('Z', '+00:00')
+        ).replace(tzinfo=None)
+    except ValueError as e:
+        return jsonify({'error': 'Ungueltiges Zeitformat', 'message': str(e)}), 400
+
+    try:
+        step_days = float(data.get('step_days', 1.0))
+        step_days = min(max(step_days, 0.01), 365.0)
+    except (ValueError, TypeError):
+        step_days = 1.0
+
+    try:
+        sample_every = int(data.get('sample_every', 1))
+        sample_every = min(max(sample_every, 1), 1000)
+    except (ValueError, TypeError):
+        sample_every = 1
+
+    bodies_data = []
+    for bid in body_ids:
+        if bid in CELESTIAL_BODIES:
+            bodies_data.append({'id': bid, **CELESTIAL_BODIES[bid]})
+        elif bid in TNO_BODIES:
+            bodies_data.append({'id': bid, **TNO_BODIES[bid]})
+        else:
+            return jsonify({
+                'error': 'Objekt nicht gefunden',
+                'message': f'Body "{bid}" existiert nicht'
+            }), 404
+
+    result = simulate_nbody(bodies_data, start_time, end_time, step_days, sample_every)
+
+    return jsonify({
+        'simulation': result,
+        'method': 'RK4 N-body integration in barycentric frame',
+        'units': {'length': 'AU', 'time': 'days', 'mass': 'M_sun'},
+    })
+
+
 @app.route('/api/planet9/search', methods=['GET'])
 @handle_errors
 @cache.cached(timeout=3600)
@@ -806,6 +874,7 @@ def not_found(error) -> Response:
             '/api/position/<id>/<timestamp>',
             '/api/orbit/<id>',
             '/api/simulate',
+            '/api/simulate/nbody',
             '/api/planet9/search',
             '/api/tno/discoveries',
             '/api/categories',
