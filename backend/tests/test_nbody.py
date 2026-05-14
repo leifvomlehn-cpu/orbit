@@ -174,3 +174,57 @@ class TestNbodyEndpoint:
         })
         d = r.get_json()
         assert 'planet9' not in d['simulation']['body_ids']
+
+    def test_endpoint_duration_days_long_sim(self, client):
+        # Sprint A.3: duration_days statt end_time fuer Sims > 7000 Jahre
+        # 10000 Jahre wuerde end_time=12026 -> OverflowError. duration_days umgeht das.
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'sedna'],
+            'start_time': '2026-01-01T00:00:00',
+            'duration_days': 10000 * 365.25,
+            'step_days': 100.0,
+            'sample_every': 50,
+        })
+        assert r.status_code == 200
+        d = r.get_json()
+        sim = d['simulation']
+        assert sim['metadata']['duration_days'] == 10000 * 365.25
+        # Timestamps muessen entweder ISO oder T+<days>d sein - aber keine Exception
+        assert isinstance(sim['timestamps'], list)
+        assert len(sim['timestamps']) > 0
+        # Letzter Timestamp muss T+... sein (Jahr 12026 ist > 9999)
+        assert sim['timestamps'][-1].startswith('T+')
+        # days_since_start ist neu in Response
+        assert 'days_since_start' in sim
+        assert sim['days_since_start'][0] == 0.0
+        assert sim['days_since_start'][-1] == pytest.approx(10000 * 365.25, rel=0.01)
+
+
+    def test_endpoint_duration_days_negative_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'duration_days': -100,
+        })
+        assert r.status_code == 400
+
+    def test_endpoint_duration_days_negative_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'start_time': '2026-01-01T00:00:00',
+            'duration_days': -100,
+            'step_days': 1.0,
+        })
+        assert r.status_code == 400
+
+    def test_endpoint_short_iso_timestamps(self, client):
+        # Bei kurzen Sims bleiben Timestamps normales ISO (year < 9999)
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'start_time': '2026-01-01T00:00:00',
+            'duration_days': 365,
+            'step_days': 1.0,
+            'sample_every': 30,
+        })
+        assert r.status_code == 200
+        last_ts = r.get_json()['simulation']['timestamps'][-1]
+        assert last_ts.startswith('2026') or last_ts.startswith('2027')

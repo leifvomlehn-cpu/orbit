@@ -1934,7 +1934,7 @@ async function fetchAndDrawNbody(bodyId, years) {
             body: JSON.stringify({
                 bodies: bodies,
                 start_time: start.toISOString().replace(/\.\d+Z$/, ''),
-                end_time: end.toISOString().replace(/\.\d+Z$/, ''),
+                duration_days: totalDays,
                 step_days: stepDays,
                 sample_every: sampleEvery,
             }),
@@ -2222,13 +2222,17 @@ async function fetchNbodyTrajectory(bodies, years, options) {
         body: JSON.stringify({
             bodies: bodies,
             start_time: start.toISOString().replace(/\.\d+Z$/, ''),
-            end_time: end.toISOString().replace(/\.\d+Z$/, ''),
+            duration_days: totalDays,
             step_days: stepDays,
             sample_every: sampleEvery,
             include_planet9: !!options.includeP9,
         }),
     });
-    if (!response.ok) throw new Error('HTTP ' + response.status + ' beim Backend-Call');
+    if (!response.ok) {
+        let detail = '';
+        try { detail = ': ' + (await response.text()).slice(0, 200); } catch (e) {}
+        throw new Error('HTTP ' + response.status + ' beim Backend-Call' + detail);
+    }
     return await response.json();
 }
 

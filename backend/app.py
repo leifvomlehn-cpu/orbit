@@ -538,11 +538,29 @@ def run_nbody_simulation() -> Response:
         start_time = datetime.fromisoformat(
             data.get('start_time', _now_utc().isoformat()).replace('Z', '+00:00')
         ).replace(tzinfo=None)
-        end_time = datetime.fromisoformat(
-            data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()).replace('Z', '+00:00')
-        ).replace(tzinfo=None)
     except ValueError as e:
-        return jsonify({'error': 'Ungueltiges Zeitformat', 'message': str(e)}), 400
+        return jsonify({'error': 'Ungueltiges start_time-Format', 'message': str(e)}), 400
+
+    # Sprint A.3: duration_days hat Vorrang. Long-term Sims (>7000 Jahre)
+    # wuerden mit end_time Python datetime-Limit (year < 10000) ueberschreiten.
+    duration_days = None
+    end_time = None
+    if 'duration_days' in data and data['duration_days'] is not None:
+        try:
+            duration_days = float(data['duration_days'])
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Ungueltiges duration_days-Format'}), 400
+        if duration_days <= 0:
+            return jsonify({'error': 'duration_days muss > 0 sein'}), 400
+        if duration_days > 365.25 * 1_000_000:
+            return jsonify({'error': 'duration_days zu gross (max 1M Jahre)'}), 400
+    else:
+        try:
+            end_time = datetime.fromisoformat(
+                data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()).replace('Z', '+00:00')
+            ).replace(tzinfo=None)
+        except ValueError as e:
+            return jsonify({'error': 'Ungueltiges end_time-Format', 'message': str(e)}), 400
 
     try:
         step_days = float(data.get('step_days', 1.0))
@@ -572,7 +590,7 @@ def run_nbody_simulation() -> Response:
     if data.get('include_planet9'):
         bodies_data.append({'id': 'planet9', **PLANET_9_PREDICTION})
 
-    result = simulate_nbody(bodies_data, start_time, end_time, step_days, sample_every)
+    result = simulate_nbody(bodies_data, start_time, end_time=end_time, duration_days=duration_days, step_days=step_days, sample_every=sample_every)
 
     return jsonify({
         'simulation': result,

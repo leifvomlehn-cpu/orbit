@@ -18,7 +18,7 @@ GM_sun = 4*pi^2 / 365.25^2 = 2.959122e-4 AU^3/day^2
 
 import math
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 import numpy as np
 
@@ -129,15 +129,22 @@ def total_angular_momentum(state: np.ndarray, gms: np.ndarray) -> np.ndarray:
 def simulate_nbody(
     bodies_data: List[Dict[str, Any]],
     start_time: datetime,
-    end_time: datetime,
+    end_time: Optional[datetime] = None,
+    duration_days: Optional[float] = None,
     step_days: float = 1.0,
     sample_every: int = 1,
 ) -> Dict[str, Any]:
-    """N-Body-Sim mit RK4 von start_time bis end_time.
-
-    bodies_data: jeder Eintrag braucht 'id', 'orbital_elements', 'physical_data.mass_kg'.
-    Ergebnis ist im baryzentrischen Frame (total momentum = 0 am Start).
+    """N-Body-Sim mit RK4. Dauer entweder via end_time ODER duration_days (Sprint A.3).
+    
+    duration_days hat Vorrang. Bei sehr langen Sims (>7000 Jahre) waere end_time
+    ausserhalb von Python's datetime-Limit (year < 10000) - duration_days umgeht das.
+    Bei diesen Faellen werden Timestamps als 'T+<tage>d'-Strings ausgegeben.
     """
+    if duration_days is None:
+        if end_time is None:
+            raise ValueError("end_time oder duration_days muss angegeben sein")
+        duration_days = (end_time - start_time).total_seconds() / 86400.0
+
     N = len(bodies_data)
     gms = np.array([
         (b['physical_data']['mass_kg'] / SUN_MASS_KG) * GM_SUN_AU3_PER_DAY2
@@ -158,30 +165,40 @@ def simulate_nbody(
         state[:, :3] -= com_pos
         state[:, 3:] -= com_vel
 
-    total_days = (end_time - start_time).total_seconds() / 86400.0
-    n_steps = max(1, int(round(total_days / step_days)))
+    n_steps = max(1, int(round(duration_days / step_days)))
 
-    snapshots: List[Tuple[datetime, np.ndarray]] = [(start_time, state.copy())]
-    current_time = start_time
+    days_at: List[float] = [0.0]
+    states: List[np.ndarray] = [state.copy()]
+    elapsed = 0.0
     for step in range(n_steps):
         state = rk4_step(state, gms, step_days)
-        current_time = current_time + timedelta(days=step_days)
+        elapsed += step_days
         if (step + 1) % sample_every == 0 or step == n_steps - 1:
-            snapshots.append((current_time, state.copy()))
+            days_at.append(elapsed)
+            states.append(state.copy())
+
+    def _fmt(days: float) -> str:
+        # Overflow-Schutz: Python datetime kann max year 9999
+        try:
+            return (start_time + timedelta(days=days)).isoformat()
+        except OverflowError:
+            return f"T+{int(round(days))}d"
 
     return {
         'body_ids': [b['id'] for b in bodies_data],
-        'timestamps': [t.isoformat() for t, _ in snapshots],
-        'positions': [s[:, :3].tolist() for _, s in snapshots],
-        'velocities': [s[:, 3:].tolist() for _, s in snapshots],
-        'energy': [total_energy(s, gms) for _, s in snapshots],
-        'angular_momentum': [total_angular_momentum(s, gms).tolist() for _, s in snapshots],
+        'timestamps': [_fmt(d) for d in days_at],
+        'days_since_start': days_at,
+        'positions': [s[:, :3].tolist() for s in states],
+        'velocities': [s[:, 3:].tolist() for s in states],
+        'energy': [total_energy(s, gms) for s in states],
+        'angular_momentum': [total_angular_momentum(s, gms).tolist() for s in states],
         'metadata': {
             'step_days': step_days,
             'n_steps': n_steps,
-            'n_samples': len(snapshots),
+            'n_samples': len(states),
             'n_bodies': N,
             'integrator': 'RK4',
             'frame': 'barycentric',
+            'duration_days': duration_days,
         },
     }
