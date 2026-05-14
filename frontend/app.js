@@ -72,6 +72,12 @@ const AppState = {
     nbodyLoading: false,
     nbodyDebounce: null,
     
+    // Long-term Demo (Sprint A.3)
+    demoMode: null,
+    demoData: null,
+    demoCache: {},
+    demoLoading: false,
+    
     // UI state
     isLoading: true,
     sidebarOpen: false,
@@ -280,6 +286,15 @@ function cacheDOMElements() {
     DOM.driftDisplay = document.getElementById('nbody-drift-display');
     DOM.driftValue = document.getElementById('drift-value');
     DOM.driftBody = document.getElementById('drift-body');
+    
+    // Long-term Demo (Sprint A.3)
+    DOM.demoSedna10kBtn = document.getElementById('demo-sedna-10k');
+    DOM.demoSednoidClusterBtn = document.getElementById('demo-sednoid-cluster');
+    DOM.demoPlanet9TestBtn = document.getElementById('demo-planet9-test');
+    DOM.demoClearBtn = document.getElementById('demo-clear');
+    DOM.demoStatus = document.getElementById('demo-status');
+    DOM.demoTitle = document.getElementById('demo-title');
+    DOM.demoDetail = document.getElementById('demo-detail');
     DOM.tooltip = document.getElementById('tooltip');
 }
 
@@ -435,6 +450,11 @@ function render() {
     // Draw N-Body comparison orbit if enabled (Sprint A.2)
     if (AppState.showNbody && AppState.selectedBody) {
         drawNbodyOrbit(ctx, AppState.selectedBody.id);
+    }
+    
+    // Draw long-term demo trajectories if any (Sprint A.3)
+    if (AppState.demoData) {
+        drawDemo(ctx);
     }
     
     // Draw Planet-9 prediction zone if enabled
@@ -1341,6 +1361,12 @@ function setupEventListeners() {
     if (DOM.nbodyYearsSlider) {
         DOM.nbodyYearsSlider.addEventListener('input', handleNbodyYearsChange);
     }
+    
+    // Long-term Demo (Sprint A.3)
+    if (DOM.demoSedna10kBtn) DOM.demoSedna10kBtn.addEventListener('click', runDemoSedna10k);
+    if (DOM.demoSednoidClusterBtn) DOM.demoSednoidClusterBtn.addEventListener('click', runDemoSednoidCluster);
+    if (DOM.demoPlanet9TestBtn) DOM.demoPlanet9TestBtn.addEventListener('click', runDemoPlanet9Test);
+    if (DOM.demoClearBtn) DOM.demoClearBtn.addEventListener('click', clearDemo);
 }
 
 /**
@@ -2019,5 +2045,285 @@ function lightenColor(hex, factor) {
     const b = parseInt(hex.slice(5, 7), 16);
     const mix = (c) => Math.round(c + (255 - c) * factor);
     return 'rgb(' + mix(r) + ', ' + mix(g) + ', ' + mix(b) + ')';
+}
+
+// =============================================================================
+// LONG-TERM DEMO SCENARIOS (Sprint A.3)
+// =============================================================================
+
+const DEMO_SEDNOIDS = ['sedna', '2012_vp113', '2023_kq14', '2013_ft28', '2014_sr349', '2010_gb174'];
+const DEMO_PERTURBERS = ['sun', 'jupiter', 'saturn', 'uranus', 'neptune'];
+
+async function runDemoSedna10k() {
+    if (AppState.demoLoading) return;
+    setDemoActive('sedna10k');
+    showDemoStatus('Sedna - 10.000 Jahre', 'Lade Simulation (vektorisierter RK4)...');
+    
+    const cacheKey = 'sedna10k';
+    if (AppState.demoCache[cacheKey]) {
+        AppState.demoData = AppState.demoCache[cacheKey];
+        finishDemo();
+        return;
+    }
+    
+    AppState.demoLoading = true;
+    setButtonsDisabled(true);
+    try {
+        const data = await fetchNbodyTrajectory(
+            DEMO_PERTURBERS.concat(['sedna']), 10000, { stepDays: 30, samples: 365 }
+        );
+        AppState.demoData = {
+            type: 'sedna10k',
+            trajectories: extractTrajectories(data, ['sedna']),
+            duration_years: 10000,
+        };
+        AppState.demoCache[cacheKey] = AppState.demoData;
+        finishDemo();
+        showDemoStatus(
+            'Sedna - 10.000 Jahre',
+            `Sedna-Bahnperiode ~11.400 Jahre. Diese Sim zeigt fast eine komplette Umrundung der Sonne mit gravitativer Wechselwirkung der Gasriesen. ` +
+            `${data.simulation.metadata.n_samples} Snapshots, Schrittweite ${data.simulation.metadata.step_days} Tage.`
+        );
+    } catch (err) {
+        console.error(err);
+        showDemoStatus('Fehler', err.message);
+    } finally {
+        AppState.demoLoading = false;
+        setButtonsDisabled(false);
+    }
+}
+
+async function runDemoSednoidCluster() {
+    if (AppState.demoLoading) return;
+    setDemoActive('sednoidCluster');
+    showDemoStatus('Sednoiden-Cluster - 100.000 Jahre', 'Lade 6 TNO-Bahnen (kann 10-20 Sek dauern)...');
+    
+    const cacheKey = 'sednoidCluster';
+    if (AppState.demoCache[cacheKey]) {
+        AppState.demoData = AppState.demoCache[cacheKey];
+        finishDemo();
+        return;
+    }
+    
+    AppState.demoLoading = true;
+    setButtonsDisabled(true);
+    try {
+        const data = await fetchNbodyTrajectory(
+            DEMO_PERTURBERS.concat(DEMO_SEDNOIDS), 100000,
+            { stepDays: 100, samples: 400 }
+        );
+        AppState.demoData = {
+            type: 'sednoidCluster',
+            trajectories: extractTrajectories(data, DEMO_SEDNOIDS),
+            duration_years: 100000,
+        };
+        AppState.demoCache[cacheKey] = AppState.demoData;
+        finishDemo();
+        showDemoStatus(
+            'Sednoiden-Cluster - 100.000 Jahre',
+            `${DEMO_SEDNOIDS.length} extreme TNOs simuliert. Die Bahnen zeigen die charakteristische Clusterung der Periheldistanzen und Argumentwinkel - eines der Hauptargumente fuer Planet-9. Schrittweite ${data.simulation.metadata.step_days} Tage.`
+        );
+    } catch (err) {
+        console.error(err);
+        showDemoStatus('Fehler', err.message);
+    } finally {
+        AppState.demoLoading = false;
+        setButtonsDisabled(false);
+    }
+}
+
+async function runDemoPlanet9Test() {
+    if (AppState.demoLoading) return;
+    setDemoActive('planet9Test');
+    
+    const cacheKey = 'planet9Test';
+    if (AppState.demoCache[cacheKey]) {
+        AppState.demoData = AppState.demoCache[cacheKey];
+        finishDemo();
+        showPlanet9Summary();
+        return;
+    }
+    
+    AppState.demoLoading = true;
+    setButtonsDisabled(true);
+    try {
+        const sednoids = DEMO_SEDNOIDS.slice(0, 4);
+        const bodiesBase = DEMO_PERTURBERS.concat(sednoids);
+        
+        showDemoStatus('Planet-9-Effekt - 50.000 Jahre', 'Lade Simulation OHNE Planet-9...');
+        const dataNoP9 = await fetchNbodyTrajectory(bodiesBase, 50000,
+            { stepDays: 50, samples: 300, includeP9: false });
+        
+        showDemoStatus('Planet-9-Effekt - 50.000 Jahre', 'Lade Simulation MIT Planet-9...');
+        const dataWithP9 = await fetchNbodyTrajectory(bodiesBase, 50000,
+            { stepDays: 50, samples: 300, includeP9: true });
+        
+        AppState.demoData = {
+            type: 'planet9Test',
+            trajectories: extractTrajectories(dataNoP9, sednoids),
+            trajectories_p9: extractTrajectories(dataWithP9, sednoids),
+            sednoids: sednoids,
+            duration_years: 50000,
+        };
+        AppState.demoCache[cacheKey] = AppState.demoData;
+        finishDemo();
+        showPlanet9Summary();
+    } catch (err) {
+        console.error(err);
+        showDemoStatus('Fehler', err.message);
+    } finally {
+        AppState.demoLoading = false;
+        setButtonsDisabled(false);
+    }
+}
+
+function showPlanet9Summary() {
+    const d = AppState.demoData;
+    if (!d || d.type !== 'planet9Test') return;
+    
+    let totalDrift = 0;
+    let maxDrift = 0;
+    let maxBody = '';
+    d.sednoids.forEach(id => {
+        const t1 = d.trajectories[id];
+        const t2 = d.trajectories_p9[id];
+        if (!t1 || !t2) return;
+        const e1 = t1[t1.length - 1];
+        const e2 = t2[t2.length - 1];
+        const drift = Math.sqrt((e1.x - e2.x) ** 2 + (e1.y - e2.y) ** 2 + (e1.z - e2.z) ** 2);
+        totalDrift += drift;
+        if (drift > maxDrift) {
+            maxDrift = drift;
+            const body = AppState.bodiesMap[id];
+            maxBody = body ? body.name_de : id;
+        }
+    });
+    const avg = totalDrift / d.sednoids.length;
+    showDemoStatus(
+        'Planet-9-Effekt - 50.000 Jahre',
+        `Durchgezogen: ohne P9 - Gestrichelt: mit P9. Mittlerer Bahn-Drift durch P9: ${avg.toFixed(2)} AU. Groesster Effekt auf ${maxBody}: ${maxDrift.toFixed(2)} AU. Bei langen Zeitskalen zeigt sich Planet-9 als systematischer Stoerer auf die Sednoid-Population.`
+    );
+}
+
+async function fetchNbodyTrajectory(bodies, years, options) {
+    options = options || {};
+    const start = new Date();
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + years);
+    
+    const stepDays = options.stepDays || 30;
+    const totalDays = years * 365.25;
+    const nSteps = Math.floor(totalDays / stepDays);
+    const sampleEvery = Math.max(1, Math.floor(nSteps / (options.samples || 300)));
+    
+    const response = await fetch(CONFIG.API_BASE + '/simulate/nbody', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            bodies: bodies,
+            start_time: start.toISOString().replace(/\.\d+Z$/, ''),
+            end_time: end.toISOString().replace(/\.\d+Z$/, ''),
+            step_days: stepDays,
+            sample_every: sampleEvery,
+            include_planet9: !!options.includeP9,
+        }),
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' beim Backend-Call');
+    return await response.json();
+}
+
+function extractTrajectories(apiData, bodyIds) {
+    const sim = apiData.simulation;
+    const sunIdx = sim.body_ids.indexOf('sun');
+    const result = {};
+    bodyIds.forEach(id => {
+        const idx = sim.body_ids.indexOf(id);
+        if (idx === -1) return;
+        result[id] = sim.positions.map(snapshot => {
+            const b = snapshot[idx];
+            const s = snapshot[sunIdx];
+            return { x: b[0] - s[0], y: b[1] - s[1], z: b[2] - s[2] };
+        });
+    });
+    return result;
+}
+
+function setDemoActive(mode) {
+    AppState.demoMode = mode;
+    const allBtns = [DOM.demoSedna10kBtn, DOM.demoSednoidClusterBtn, DOM.demoPlanet9TestBtn];
+    allBtns.forEach(b => b && b.classList.remove('active'));
+    const map = {
+        'sedna10k': DOM.demoSedna10kBtn,
+        'sednoidCluster': DOM.demoSednoidClusterBtn,
+        'planet9Test': DOM.demoPlanet9TestBtn,
+    };
+    if (map[mode]) map[mode].classList.add('active');
+}
+
+function setButtonsDisabled(disabled) {
+    [DOM.demoSedna10kBtn, DOM.demoSednoidClusterBtn, DOM.demoPlanet9TestBtn].forEach(b => {
+        if (b) b.disabled = disabled;
+    });
+}
+
+function showDemoStatus(title, detail) {
+    if (DOM.demoStatus) DOM.demoStatus.classList.remove('hidden');
+    if (DOM.demoTitle) DOM.demoTitle.textContent = title;
+    if (DOM.demoDetail) DOM.demoDetail.textContent = detail;
+}
+
+function clearDemo() {
+    AppState.demoMode = null;
+    AppState.demoData = null;
+    [DOM.demoSedna10kBtn, DOM.demoSednoidClusterBtn, DOM.demoPlanet9TestBtn].forEach(b => {
+        if (b) b.classList.remove('active');
+    });
+    if (DOM.demoStatus) DOM.demoStatus.classList.add('hidden');
+    render();
+}
+
+function finishDemo() {
+    render();
+}
+
+function drawDemo(ctx) {
+    const d = AppState.demoData;
+    if (!d) return;
+    drawTrajectories(ctx, d.trajectories, false);
+    if (d.trajectories_p9) {
+        drawTrajectories(ctx, d.trajectories_p9, true);
+    }
+}
+
+function drawTrajectories(ctx, trajectories, dashed) {
+    const scale = AppState.scale;
+    const sunX = AppState.offsetX;
+    const sunY = AppState.offsetY;
+    
+    Object.entries(trajectories).forEach(([id, points]) => {
+        const body = AppState.bodiesMap[id];
+        const color = body ? body.color : '#ffffff';
+        ctx.strokeStyle = dashed ? lightenColor(color, 0.4) : color;
+        ctx.lineWidth = dashed ? 1.4 : 1.6;
+        ctx.setLineDash(dashed ? [5, 4] : []);
+        ctx.globalAlpha = 0.75;
+        
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            let x = p.x, y = p.y, z = p.z;
+            if (AppState.viewMode === '3d') {
+                const r = rotate3D(x, y, z);
+                x = r.x;
+                y = r.y;
+            }
+            const sx = sunX + x * scale;
+            const sy = sunY + y * scale;
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+        });
+        ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
 }
 

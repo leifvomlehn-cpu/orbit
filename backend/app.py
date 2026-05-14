@@ -568,6 +568,10 @@ def run_nbody_simulation() -> Response:
                 'message': f'Body "{bid}" existiert nicht'
             }), 404
 
+    # Sprint A.3: optional Planet-9 in den N-Body-Pool aufnehmen
+    if data.get('include_planet9'):
+        bodies_data.append({'id': 'planet9', **PLANET_9_PREDICTION})
+
     result = simulate_nbody(bodies_data, start_time, end_time, step_days, sample_every)
 
     return jsonify({

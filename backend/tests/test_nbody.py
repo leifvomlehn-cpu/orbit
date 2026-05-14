@@ -149,3 +149,28 @@ class TestNbodyEndpoint:
     def test_endpoint_in_available_endpoints_404(self, client):
         d = client.get('/api/does_not_exist').get_json()
         assert '/api/simulate/nbody' in d['available_endpoints']
+
+    def test_endpoint_include_planet9(self, client):
+        # Sprint A.3: P9 muss im N-Body-Pool landen wenn include_planet9=true
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'sedna'],
+            'start_time': '2026-01-01T00:00:00',
+            'end_time': '2026-04-01T00:00:00',
+            'step_days': 5.0,
+            'sample_every': 5,
+            'include_planet9': True,
+        })
+        assert r.status_code == 200
+        d = r.get_json()
+        assert 'planet9' in d['simulation']['body_ids']
+
+    def test_endpoint_planet9_default_off(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'start_time': '2026-01-01T00:00:00',
+            'end_time': '2026-02-01T00:00:00',
+            'step_days': 1.0,
+            'sample_every': 5,
+        })
+        d = r.get_json()
+        assert 'planet9' not in d['simulation']['body_ids']

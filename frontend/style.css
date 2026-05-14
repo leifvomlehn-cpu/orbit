@@ -1384,3 +1384,135 @@ body {
         min-width: 140px;
     }
 }
+
+/* ============================================================================
+   Long-term Demo Panel (Sprint A.3)
+   ============================================================================ */
+
+.demo-panel {
+    position: fixed;
+    top: 200px;
+    right: 20px;
+    background: rgba(20, 30, 60, 0.85);
+    border: 1px solid rgba(100, 150, 255, 0.4);
+    padding: 12px;
+    border-radius: 8px;
+    color: #fff;
+    width: 240px;
+    z-index: 94;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.demo-panel h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    opacity: 0.95;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.demo-btn,
+.demo-btn-secondary {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: rgba(100, 150, 255, 0.18);
+    border: 1px solid rgba(100, 150, 255, 0.35);
+    color: #fff;
+    padding: 9px 11px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.18s;
+    line-height: 1.4;
+}
+
+.demo-btn strong {
+    display: block;
+    font-weight: 600;
+}
+
+.demo-btn small {
+    display: block;
+    opacity: 0.65;
+    font-size: 10px;
+    margin-top: 2px;
+    font-weight: 400;
+}
+
+.demo-btn:hover {
+    background: rgba(100, 150, 255, 0.32);
+    transform: translateX(-1px);
+}
+
+.demo-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.demo-btn.active {
+    background: rgba(100, 150, 255, 0.7);
+    border-color: rgb(100, 150, 255);
+    box-shadow: 0 0 10px rgba(100, 150, 255, 0.4);
+}
+
+.demo-btn-secondary {
+    background: rgba(180, 100, 100, 0.15);
+    border-color: rgba(180, 100, 100, 0.35);
+    text-align: center;
+    margin-top: 8px;
+    margin-bottom: 0;
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+.demo-btn-secondary:hover {
+    background: rgba(180, 100, 100, 0.3);
+    opacity: 1;
+}
+
+.demo-status {
+    position: fixed;
+    top: 200px;
+    right: 280px;
+    background: rgba(0, 0, 0, 0.78);
+    border: 1px solid rgba(100, 150, 255, 0.4);
+    padding: 11px 14px;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 12px;
+    max-width: 340px;
+    z-index: 95;
+    backdrop-filter: blur(8px);
+}
+
+.demo-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #b0c4ff;
+}
+
+.demo-detail {
+    opacity: 0.85;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+    .demo-panel {
+        top: auto;
+        bottom: 280px;
+        right: 10px;
+        width: 200px;
+    }
+    .demo-status {
+        position: fixed;
+        top: auto;
+        bottom: 480px;
+        right: 10px;
+        max-width: 200px;
+    }
+}
