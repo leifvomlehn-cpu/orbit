@@ -124,6 +124,59 @@ class TestKeplerBaseline:
         assert diff < 0.001, f"RK4 vs Kepler Erde 10yr: {diff} AU"
 
 
+class TestVerletStability:
+    """Verlet sollte ueber lange Sims energie-stabil bleiben (symplektisch)."""
+
+    def _sun_earth_bodies(self):
+        return [
+            {
+                'id': 'sun',
+                'orbital_elements': {'semi_major_axis_au': 0.0, 'eccentricity': 0.0,
+                                     'orbital_period_days': 1.0,
+                                     'inclination_deg': 0.0,
+                                     'longitude_ascending_node_deg': 0.0,
+                                     'argument_perihelion_deg': 0.0,
+                                     'mean_anomaly_deg': 0.0},
+                'physical_data': {'mass_kg': 1.989e30},
+            },
+            {
+                'id': 'earth',
+                'orbital_elements': {'semi_major_axis_au': 1.0, 'eccentricity': 0.0167,
+                                     'orbital_period_days': 365.25,
+                                     'inclination_deg': 0.0,
+                                     'longitude_ascending_node_deg': 0.0,
+                                     'argument_perihelion_deg': 0.0,
+                                     'mean_anomaly_deg': 0.0},
+                'physical_data': {'mass_kg': 5.972e24},
+            },
+        ]
+
+    def test_verlet_1000yr_drift_bounded(self):
+        from datetime import datetime
+        from nbody import simulate_nbody
+        result = simulate_nbody(
+            self._sun_earth_bodies(), datetime(2026, 1, 1),
+            duration_days=365.25 * 1000, step_days=10, sample_every=365,
+            integrator='verlet',
+        )
+        e = result['energy']
+        drift = abs((e[-1] - e[0]) / e[0])
+        assert drift < 1e-3, f"Verlet 1000yr drift: {drift:.2e}"
+
+    def test_verlet_metadata_marker(self):
+        from datetime import datetime
+        from nbody import simulate_nbody
+        bodies = self._sun_earth_bodies()
+        rk4 = simulate_nbody(bodies, datetime(2026, 1, 1),
+                             duration_days=365.25, step_days=1,
+                             integrator='rk4')
+        vlt = simulate_nbody(bodies, datetime(2026, 1, 1),
+                             duration_days=365.25, step_days=1,
+                             integrator='verlet')
+        assert rk4['metadata']['integrator'] == 'RK4'
+        assert vlt['metadata']['integrator'] == 'VERLET'
+
+
 class TestNbodyEndpoint:
     def test_endpoint_basic(self, client):
         r = client.post('/api/simulate/nbody', json={
@@ -203,13 +256,6 @@ class TestNbodyEndpoint:
     def test_endpoint_duration_days_negative_returns_400(self, client):
         r = client.post('/api/simulate/nbody', json={
             'bodies': ['sun', 'earth'],
-            'duration_days': -100,
-        })
-        assert r.status_code == 400
-
-    def test_endpoint_duration_days_negative_returns_400(self, client):
-        r = client.post('/api/simulate/nbody', json={
-            'bodies': ['sun', 'earth'],
             'start_time': '2026-01-01T00:00:00',
             'duration_days': -100,
             'step_days': 1.0,
@@ -228,3 +274,42 @@ class TestNbodyEndpoint:
         assert r.status_code == 200
         last_ts = r.get_json()['simulation']['timestamps'][-1]
         assert last_ts.startswith('2026') or last_ts.startswith('2027')
+
+    def test_endpoint_auto_uses_rk4_for_short_sim(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'start_time': '2026-01-01T00:00:00',
+            'duration_days': 365.25 * 1000,
+            'step_days': 10, 'sample_every': 100,
+        })
+        assert r.status_code == 200
+        assert r.get_json()['simulation']['metadata']['integrator'] == 'RK4'
+
+    def test_endpoint_auto_uses_verlet_for_long_sim(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'sedna'],
+            'start_time': '2026-01-01T00:00:00',
+            'duration_days': 365.25 * 10000,
+            'step_days': 100, 'sample_every': 100,
+        })
+        assert r.status_code == 200
+        assert r.get_json()['simulation']['metadata']['integrator'] == 'VERLET'
+
+    def test_endpoint_explicit_integrator_override(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'start_time': '2026-01-01T00:00:00',
+            'duration_days': 365.25 * 10000,
+            'step_days': 100, 'sample_every': 100,
+            'integrator': 'rk4',
+        })
+        assert r.status_code == 200
+        assert r.get_json()['simulation']['metadata']['integrator'] == 'RK4'
+
+    def test_endpoint_invalid_integrator_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'duration_days': 365,
+            'integrator': 'bogus',
+        })
+        assert r.status_code == 400

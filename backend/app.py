@@ -590,7 +590,19 @@ def run_nbody_simulation() -> Response:
     if data.get('include_planet9'):
         bodies_data.append({'id': 'planet9', **PLANET_9_PREDICTION})
 
-    result = simulate_nbody(bodies_data, start_time, end_time=end_time, duration_days=duration_days, step_days=step_days, sample_every=sample_every)
+    # Sprint A.3.2: integrator-auto-switch fuer Langzeit-Sims.
+    # RK4 ist nicht-symplektisch und driftet linear bei >paar 1000 Jahren.
+    # Velocity-Verlet ist symplektisch (Energie oszilliert beschraenkt) und
+    # nur halb so teuer pro Schritt.
+    integrator = data.get('integrator', 'auto')
+    if integrator == 'auto':
+        actual_days = duration_days if duration_days is not None else \
+                      (end_time - start_time).total_seconds() / 86400.0
+        integrator = 'verlet' if actual_days > 365.25 * 5000 else 'rk4'
+    if integrator not in ('rk4', 'verlet'):
+        return jsonify({'error': f'Ungueltiger integrator: {integrator!r}'}), 400
+
+    result = simulate_nbody(bodies_data, start_time, end_time=end_time, duration_days=duration_days, step_days=step_days, sample_every=sample_every, integrator=integrator)
 
     return jsonify({
         'simulation': result,

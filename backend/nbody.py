@@ -102,6 +102,26 @@ def rk4_step(state: np.ndarray, gms: np.ndarray, dt: float) -> np.ndarray:
     return state + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
 
 
+def verlet_step(state: np.ndarray, gms: np.ndarray, dt: float) -> np.ndarray:
+    """Velocity-Verlet (Leapfrog) - symplektischer 2nd-order Integrator.
+
+    Bei langen Sims (>5000 Jahre) deutlich energie-stabiler als RK4, weil
+    symplektisch: Gesamtenergie oszilliert beschraenkt statt linear zu driften.
+    Pro Schritt nur 2 Beschleunigungs-Calls (RK4: 4) -> auch ~2x schneller.
+    """
+    pos = state[:, :3]
+    vel = state[:, 3:]
+    acc1 = accelerations(pos, gms)
+    vel_half = vel + 0.5 * dt * acc1
+    pos_new = pos + dt * vel_half
+    acc2 = accelerations(pos_new, gms)
+    vel_new = vel_half + 0.5 * dt * acc2
+    out = np.empty_like(state)
+    out[:, :3] = pos_new
+    out[:, 3:] = vel_new
+    return out
+
+
 def total_energy(state: np.ndarray, gms: np.ndarray) -> float:
     """Gesamtenergie (kin + pot) - sollte ueber Integration konstant bleiben.
 
@@ -133,6 +153,7 @@ def simulate_nbody(
     duration_days: Optional[float] = None,
     step_days: float = 1.0,
     sample_every: int = 1,
+    integrator: str = 'rk4',
 ) -> Dict[str, Any]:
     """N-Body-Sim mit RK4. Dauer entweder via end_time ODER duration_days (Sprint A.3).
     
@@ -165,13 +186,20 @@ def simulate_nbody(
         state[:, :3] -= com_pos
         state[:, 3:] -= com_vel
 
+    if integrator == 'verlet':
+        step_fn = verlet_step
+    elif integrator == 'rk4':
+        step_fn = rk4_step
+    else:
+        raise ValueError(f"Unknown integrator: {integrator!r} (use rk4 or verlet)")
+
     n_steps = max(1, int(round(duration_days / step_days)))
 
     days_at: List[float] = [0.0]
     states: List[np.ndarray] = [state.copy()]
     elapsed = 0.0
     for step in range(n_steps):
-        state = rk4_step(state, gms, step_days)
+        state = step_fn(state, gms, step_days)
         elapsed += step_days
         if (step + 1) % sample_every == 0 or step == n_steps - 1:
             days_at.append(elapsed)
@@ -197,7 +225,7 @@ def simulate_nbody(
             'n_steps': n_steps,
             'n_samples': len(states),
             'n_bodies': N,
-            'integrator': 'RK4',
+            'integrator': integrator.upper(),
             'frame': 'barycentric',
             'duration_days': duration_days,
         },
