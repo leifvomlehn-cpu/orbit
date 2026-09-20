@@ -129,7 +129,11 @@ def health_check() -> Response:
 
 @app.route('/api/bodies', methods=['GET'])
 @handle_errors
-@cache.cached(timeout=300, key_prefix='all_bodies')
+@cache.cached(timeout=300, key_prefix=lambda: (
+    f'bodies_{request.args.get("category", "all")}'
+    f'_orbits={request.args.get("include_orbits", "false").lower()}'
+    f'_p9={request.args.get("include_planet9", "false").lower()}'
+))
 def get_all_bodies() -> Response:
     """
     Get all celestial bodies with their orbital parameters.
@@ -356,7 +360,11 @@ def get_position(body_id: str, timestamp: str) -> Response:
 
 @app.route('/api/orbit/<body_id>', methods=['GET'])
 @handle_errors
-@cache.cached(timeout=600, key_prefix=lambda: f'orbit_{request.view_args["body_id"]}')
+@cache.cached(timeout=600, key_prefix=lambda: (
+    f'orbit_{request.view_args["body_id"]}'
+    f'_pts={request.args.get("points", "360")}'
+    f'_elem={request.args.get("include_elements", "false").lower()}'
+))
 def get_orbit(body_id: str) -> Response:
     """
     Get the orbital path for a celestial body.
@@ -613,7 +621,9 @@ def run_nbody_simulation() -> Response:
 
 @app.route('/api/planet9/search', methods=['GET'])
 @handle_errors
-@cache.cached(timeout=3600)
+@cache.cached(timeout=3600, key_prefix=lambda: (
+    f'p9search_{request.args.get("confidence", "moderate")}'
+))
 def get_planet9_search_zone() -> Response:
     """
     Get the predicted search zone for Planet-9.
@@ -662,7 +672,9 @@ def get_planet9_search_zone() -> Response:
 
 @app.route('/api/tno/discoveries', methods=['GET'])
 @handle_errors
-@cache.cached(timeout=3600)
+@cache.cached(timeout=3600, key_prefix=lambda: (
+    f'tno_disc_limit={request.args.get("limit", "20")}'
+))
 def get_tno_discoveries() -> Response:
     """
     Get information about recent TNO discoveries.

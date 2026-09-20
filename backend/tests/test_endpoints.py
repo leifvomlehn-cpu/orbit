@@ -41,6 +41,19 @@ class TestGetAllBodies:
         axes = [b['orbital_elements']['semi_major_axis_au'] for b in d['bodies']]
         assert axes == sorted(axes)
 
+    def test_cache_keys_are_query_aware(self, client):
+        # Regression: statischer Key 'all_bodies' ignorierte category/planet9 —
+        # die erste Anfrage bestimmte 5 min lang alle Antworten.
+        d1 = client.get('/api/bodies').get_json()
+        assert 'planet9' not in [b['id'] for b in d1['bodies']]
+        d2 = client.get('/api/bodies?include_planet9=true').get_json()
+        assert 'planet9' in [b['id'] for b in d2['bodies']]
+        d3 = client.get('/api/bodies?category=planets').get_json()
+        assert {b['category'] for b in d3['bodies']} == {'planet'}
+        # Wiederholung der ersten Anfrage: Cache-Treffer, unveraenderte Daten
+        d4 = client.get('/api/bodies').get_json()
+        assert len(d4['bodies']) == len(d1['bodies'])
+
 
 class TestGetBody:
     def test_get_earth_by_id(self, client):
@@ -85,6 +98,13 @@ class TestOrbit:
         d = client.get('/api/orbit/earth?points=180').get_json()
         assert d['points_count'] == 180
 
+    def test_orbit_cache_keys_are_query_aware(self, client):
+        # Regression: Key enthielt nur body_id, points ging unter
+        d1 = client.get('/api/orbit/earth?points=180').get_json()
+        d2 = client.get('/api/orbit/earth?points=360').get_json()
+        assert d1['points_count'] == 180
+        assert d2['points_count'] == 360
+
 
 class TestSimulate:
     def test_simulate_basic(self, client):
@@ -121,12 +141,26 @@ class TestPlanet9Search:
         for k in ('planet9_prediction', 'search_zone', 'tno_clustering'):
             assert k in d
 
+    def test_cache_keys_are_query_aware(self, client):
+        # Regression: Default-Key (nur Pfad) ignorierte confidence
+        d1 = client.get('/api/planet9/search?confidence=conservative').get_json()
+        d2 = client.get('/api/planet9/search?confidence=optimistic').get_json()
+        assert d1['search_zone']['confidence_level'] == 'conservative'
+        assert d2['search_zone']['confidence_level'] == 'optimistic'
+
 
 class TestTnoDiscoveries:
     def test_returns_count(self, client):
         d = client.get('/api/tno/discoveries').get_json()
         assert d['count'] > 0
         assert d['total_tnos'] > 0
+
+    def test_cache_keys_are_query_aware(self, client):
+        # Regression: Default-Key (nur Pfad) ignorierte limit
+        d1 = client.get('/api/tno/discoveries?limit=5').get_json()
+        d2 = client.get('/api/tno/discoveries?limit=10').get_json()
+        assert d1['count'] == 5
+        assert d2['count'] == 10
 
 
 class TestCategoriesEndpoint:
