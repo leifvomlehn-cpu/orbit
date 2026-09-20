@@ -72,8 +72,9 @@ export interface CelestialBody {
   /** nur Planet-9 */
   hypothetical?: boolean
   confidence_level?: string
-  /** TNO-Untertyp (wird seit dem Sprint-B-API-Patch vom Backend mitgeliefert) */
-  tno_type?: 'sednoid' | 'extreme_tno'
+  /** TNO-Untertyp (seit dem Sprint-B-API-Patch mitgeliefert; Werte laut
+   *  orbital_data.py — der Extreme-Filter nutzt sednoid/extreme_tno) */
+  tno_type?: 'sednoid' | 'extreme_tno' | 'detached' | 'scattered'
   /** nur wenn include_orbits=true */
   orbit_path?: OrbitPath
 }

@@ -18,7 +18,8 @@
     "@react-three/fiber": "^9.7.0",
     "react": "~19.2.8",
     "react-dom": "~19.2.8",
-    "three": "^0.186.0"
+    "three": "^0.186.0",
+    "three-stdlib": "^2.35.6"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
@@ -26,6 +27,7 @@
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "~6.0.3",
+    "vite": "^8.0.0",
     "vitest": "^5.0.1"
   }
 }
