@@ -5,6 +5,7 @@ import type { Group } from 'three'
 import type { CelestialBody } from '../types'
 import { calculateBodyPosition } from '../simulation/kepler'
 import { useAppDispatch, useAppState, useSimClock } from '../state/AppContext'
+import { toScene } from './coords'
 
 /**
  * Anzeige-Radien in Scene-Units (1 AU = 1 Unit) — bewusst weit ÜBER
@@ -48,7 +49,7 @@ export default function BodyNode({ body }: BodyNodeProps) {
       return
     }
     const pos = calculateBodyPosition(body.orbital_elements, clock.getSimDate())
-    if (pos) group.position.set(pos.x, pos.z, -pos.y)
+    if (pos) group.position.set(...toScene(pos))
   })
 
   const radius = displayRadius(body)

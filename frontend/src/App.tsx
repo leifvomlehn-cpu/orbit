@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppProvider, useAppDispatch, useAppState, useSimClock } from './state/AppContext'
 import { fetchBodies } from './api/endpoints'
-import { resetView, zoomIn, zoomOut } from './scene/cameraBus'
+import { resetView, zoomIn, zoomOut } from './utils/cameraBus'
 import SolarSystemScene from './scene/SolarSystemScene'
 import ErrorBanner from './components/ErrorBanner'
 import Header from './components/Header'

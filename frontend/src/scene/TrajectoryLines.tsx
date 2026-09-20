@@ -3,6 +3,7 @@ import { Line } from '@react-three/drei'
 import { useAppState } from '../state/AppContext'
 import { nbodyCacheKey } from '../state/reducer'
 import { lightenColor } from '../utils/color'
+import { toScene } from './coords'
 import type { Vec3 } from '../types'
 
 function TrajectoryLine({
@@ -14,10 +15,7 @@ function TrajectoryLine({
   color: string
   dashed?: boolean
 }) {
-  const pts = useMemo(
-    () => points.map((p) => [p.x, p.z, -p.y] as [number, number, number]),
-    [points],
-  )
+  const pts = useMemo(() => points.map(toScene), [points])
   return (
     <Line
       points={pts}

@@ -193,8 +193,14 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'error/dismiss':
       return { ...state, error: null }
     default:
-      return state
+      // Exhaustiveness-Check: fehlt ein case, ist action hier nicht never → TS-Fehler.
+      return assertNever(action)
   }
+}
+
+/** Compile-Zeit-Wächter: im default-Case darf nur `never` ankommen — sonst fehlt ein case. */
+function assertNever(action: never): AppState {
+  throw new Error(`appReducer: unbehandelte Action ${JSON.stringify(action)}`)
 }
 
 /** Sichtbare Bodies nach Kategorie-Filter + Suche (name/name_de). */

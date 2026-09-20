@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppDispatch, useAppState, useSimClock } from '../state/AppContext'
 import { useSimDate } from '../hooks/useSimDate'
-import { resetView, zoomIn, zoomOut } from '../scene/cameraBus'
+import { resetView, zoomIn, zoomOut } from '../utils/cameraBus'
 
 /**
  * Untere Leiste: Zoom (via cameraBus zu den OrbitControls), Zeitsprünge

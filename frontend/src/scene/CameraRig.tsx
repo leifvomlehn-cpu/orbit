@@ -1,6 +1,6 @@
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import type { ViewMode } from '../state/reducer'
-import { registerControls } from './cameraBus'
+import { registerControls } from '../utils/cameraBus'
 
 /**
  * 2D = orthografische Draufsicht von Norden (nur Pan + Zoom, keine Rotation),
