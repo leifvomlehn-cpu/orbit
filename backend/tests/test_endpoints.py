@@ -195,3 +195,88 @@ class TestUnknownEndpoint:
         r = client.get('/api/does_not_exist')
         assert r.status_code == 404
         assert 'available_endpoints' in r.get_json()
+
+
+class TestIsoTimestampHandling:
+    """Regression Fix-Paket 09/2026: 'Z'/Offsets crashten mit HTTP 500
+    (naive - aware datetime) oder wurden ohne UTC-Umrechnung abgeschnitten."""
+
+    def test_position_accepts_z_suffix(self, client):
+        r = client.get('/api/position/earth/2026-04-06T12:00:00Z')
+        assert r.status_code == 200
+        assert r.get_json()['timestamp'].startswith('2026-04-06T12:00:00')
+
+    def test_position_offset_is_converted_to_utc(self, client):
+        # '+' im Pfad bleibt literal (kein Query-Decoding) — 14:00+02:00 = 12:00 UTC
+        r = client.get('/api/position/earth/2026-04-06T14:00:00+02:00')
+        assert r.status_code == 200
+        assert r.get_json()['timestamp'].startswith('2026-04-06T12:00:00')
+
+    def test_time_convert_accepts_z(self, client):
+        d = client.get('/api/time/convert?iso=2000-01-01T12:00:00Z').get_json()
+        assert d['julian_date'] == pytest.approx(2451545.0)
+
+    def test_time_convert_offset_is_converted_to_utc(self, client):
+        # Query-String: '+' muss als %2B kodiert sein (sonst Space)
+        d = client.get('/api/time/convert?iso=2000-01-01T14:00:00%2B02:00').get_json()
+        assert d['julian_date'] == pytest.approx(2451545.0)
+
+    def test_ephemeris_accepts_z_dates(self, client):
+        r = client.get('/api/ephemeris?start_date=2026-01-01T00:00:00Z&end_date=2026-01-15T00:00:00Z')
+        assert r.status_code == 200
+        assert r.get_json()['entries'] > 0
+
+    def test_simulate_accepts_z_timestamps(self, client):
+        r = client.post('/api/simulate', json={
+            'bodies': ['earth'],
+            'start_time': '2026-01-01T00:00:00Z',
+            'end_time': '2026-02-01T00:00:00Z',
+            'steps': 10,
+        })
+        assert r.status_code == 200
+
+    def test_nbody_accepts_z_timestamps(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'start_time': '2026-01-01T00:00:00Z',
+            'duration_days': 30,
+            'step_days': 5.0,
+        })
+        assert r.status_code == 200
+
+
+class TestNbodyLimits:
+    """Regression Fix-Paket 09/2026: unbegrenzte n_steps/n_samples -> OOM
+    im 2G-Container. Caps muessen VOR der Array-Allokation greifen."""
+
+    def test_step_cap_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'duration_days': 365.25 * 1_000_000,
+            'step_days': 0.01,
+        })
+        assert r.status_code == 400
+        d = r.get_json()
+        assert d['max_steps'] == 2_000_000
+        assert d['n_steps_required'] > d['max_steps']
+
+    def test_sample_cap_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'duration_days': 365.25 * 5000,
+            'step_days': 1.0,
+            'sample_every': 1,
+        })
+        assert r.status_code == 400
+        d = r.get_json()
+        assert d['max_samples'] == 10_000
+        assert d['n_samples_required'] > d['max_samples']
+
+    def test_request_within_limits_passes(self, client):
+        r = client.post('/api/simulate/nbody', json={
+            'bodies': ['sun', 'earth'],
+            'duration_days': 365.25,
+            'step_days': 30,
+            'sample_every': 1,
+        })
+        assert r.status_code == 200

@@ -368,3 +368,25 @@ class TestNbodyEndpoint:
             'integrator': 'bogus',
         })
         assert r.status_code == 400
+
+
+class TestSimulateLimits:
+    """Defense-in-Depth (Fix-Paket 09/2026): simulate_nbody setzt die
+    OOM-Limits auch bei direktem Aufruf ohne app.py-Endpoint durch."""
+
+    def _bodies(self):
+        return [
+            {'id': 'sun', **CELESTIAL_BODIES['sun']},
+            {'id': 'earth', **CELESTIAL_BODIES['earth']},
+        ]
+
+    def test_step_cap_raises(self):
+        with pytest.raises(ValueError, match='n_steps'):
+            simulate_nbody(self._bodies(), datetime(2026, 1, 1),
+                           duration_days=365.25 * 1_000_000, step_days=0.01)
+
+    def test_sample_cap_raises(self):
+        with pytest.raises(ValueError, match='n_samples'):
+            simulate_nbody(self._bodies(), datetime(2026, 1, 1),
+                           duration_days=365.25 * 5000, step_days=1.0,
+                           sample_every=1)

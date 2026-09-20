@@ -42,6 +42,12 @@ GM_SUN_AU3_PER_DAY2 = 2.959122082855911e-4
 SUN_MASS_KG = 1.989e30
 SOFTENING_AU2 = 1e-18  # squared, gegen Division durch 0
 
+# OOM-Schutz (Fix-Paket 09/2026): harte Limits BEVOR Arrays allokiert werden.
+# Ohne Cap reichte ein einziger POST (1 Mio Jahre @ step_days=0.01) fuer
+# Arrays im GB-Bereich -> OOM im 2G-Container.
+MAX_NBODY_STEPS = 2_000_000
+MAX_NBODY_SAMPLES = 10_000
+
 
 def kepler_state_vector(elements: Dict[str, float], dt: datetime) -> Tuple[np.ndarray, np.ndarray]:
     """Position + Geschwindigkeit aus Kepler-Bahnelementen am Zeitpunkt dt.
@@ -284,6 +290,19 @@ def simulate_nbody(
         raise ValueError(f"Unknown integrator: {integrator!r} (use rk4 or verlet)")
 
     n_steps = max(1, int(round(duration_days / step_days)))
+    if n_steps > MAX_NBODY_STEPS:
+        raise ValueError(
+            f"n_steps={n_steps} uebersteigt Limit {MAX_NBODY_STEPS} "
+            f"(duration_days={duration_days:.0f}, step_days={step_days}). "
+            f"Groessere step_days oder kuerzere Dauer waehlen."
+        )
+    n_samples = n_steps // max(1, sample_every) + 2
+    if n_samples > MAX_NBODY_SAMPLES:
+        raise ValueError(
+            f"n_samples={n_samples} uebersteigt Limit {MAX_NBODY_SAMPLES} "
+            f"(n_steps={n_steps}, sample_every={sample_every}). "
+            f"Groesseres sample_every waehlen."
+        )
 
     if integrator == 'verlet' and HAS_NUMBA:
         # Numba fast-path: kompletter 365k-step Loop in einem JIT-Kernel.

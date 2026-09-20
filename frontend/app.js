@@ -134,6 +134,7 @@ const DOM = {
     // Time controls
     timePlayBtn: null,
     timeRewindBtn: null,
+    timeFastForwardBtn: null,
     timeForwardBtn: null,
     timeBackBtn: null,
     timeMonthBackBtn: null,
@@ -258,7 +259,8 @@ function cacheDOMElements() {
     
     DOM.timePlayBtn = document.getElementById('time-play');
     DOM.timeRewindBtn = document.getElementById('time-rewind');
-    DOM.timeForwardBtn = document.getElementById('time-fast-forward');
+    DOM.timeFastForwardBtn = document.getElementById('time-fast-forward');
+    DOM.timeForwardBtn = document.getElementById('time-forward');
     DOM.timeBackBtn = document.getElementById('time-back');
     DOM.timeMonthBackBtn = document.getElementById('time-month-back');
     DOM.timeMonthForwardBtn = document.getElementById('time-month-forward');
@@ -538,11 +540,12 @@ function drawGrid(ctx, width, height) {
         ctx.lineTo(width, screenY);
         ctx.stroke();
         
-        // Label
+        // Label: Daten werden Y-gespiegelt gezeichnet (sy = offsetY - y*scale),
+        // das Grid nicht — die Linie "y" liegt bei Welt-Koordinate -y.
         if (y !== 0 && scale > 5) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.font = '10px Arial';
-            ctx.fillText(`${y} AU`, offsetX + 5, screenY - 2);
+            ctx.fillText(`${-y} AU`, offsetX + 5, screenY - 2);
         }
     }
     
@@ -1296,10 +1299,11 @@ function setupEventListeners() {
     
     if (DOM.timePlayBtn) DOM.timePlayBtn.addEventListener('click', togglePlay);
     if (DOM.timeRewindBtn) DOM.timeRewindBtn.addEventListener('click', () => skipTime(-365));
-    if (DOM.timeForwardBtn) DOM.timeForwardBtn.addEventListener('click', () => skipTime(365));
+    if (DOM.timeFastForwardBtn) DOM.timeFastForwardBtn.addEventListener('click', () => skipTime(365));
+    if (DOM.timeForwardBtn) DOM.timeForwardBtn.addEventListener('click', () => skipTime(30));
     if (DOM.timeBackBtn) DOM.timeBackBtn.addEventListener('click', () => skipTime(-30));
-    if (DOM.timeMonthBackBtn) DOM.timeMonthBackBtn.addEventListener('click', () => skipTime(-30));
-    if (DOM.timeMonthForwardBtn) DOM.timeMonthForwardBtn.addEventListener('click', () => skipTime(30));
+    if (DOM.timeMonthBackBtn) DOM.timeMonthBackBtn.addEventListener('click', () => skipMonths(-1));
+    if (DOM.timeMonthForwardBtn) DOM.timeMonthForwardBtn.addEventListener('click', () => skipMonths(1));
     
     if (DOM.speedSlider) {
         DOM.speedSlider.addEventListener('input', handleSpeedChange);
@@ -1714,6 +1718,17 @@ function stopAnimation() {
  */
 function skipTime(days) {
     AppState.currentDate = new Date(AppState.currentDate.getTime() + days * 24 * 60 * 60 * 1000);
+    updateTimeDisplay();
+    render();
+}
+
+/**
+ * Skip time by whole months (setMonth handles year rollover)
+ */
+function skipMonths(months) {
+    const d = new Date(AppState.currentDate.getTime());
+    d.setMonth(d.getMonth() + months);
+    AppState.currentDate = d;
     updateTimeDisplay();
     render();
 }

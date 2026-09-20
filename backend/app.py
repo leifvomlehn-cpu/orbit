@@ -22,6 +22,21 @@ def _now_utc() -> datetime:
     """Naive UTC now — replaces deprecated _now_utc() (Py 3.12+).
     Returns tz-naive to keep isoformat() output identical to the old behavior."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def parse_iso_utc(value: str) -> datetime:
+    """Parse ISO-8601 inkl. 'Z'/Offsets und liefere tz-naive UTC.
+
+    Die Physik rechnet tz-naiv in UTC (J2000_EPOCH ist naive) — ein aware
+    Zeitstempel crasht dort mit TypeError (naive - aware) -> HTTP 500.
+    Ausserdem: Offsets werden korrekt nach UTC umgerechnet statt nur
+    abgeschnitten ('+02:00' -> -2h). ValueError propagiert -> Aufrufer
+    antwortet 400.
+    """
+    dt = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 from typing import Dict, List, Optional, Any, Tuple
 from functools import wraps
 import logging
@@ -312,8 +327,7 @@ def get_position(body_id: str, timestamp: str) -> Response:
         dt = _now_utc()
     else:
         try:
-            # Handle various ISO formats
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            dt = parse_iso_utc(timestamp)
         except ValueError:
             return jsonify({
                 'error': 'Ungültiges Zeitformat',
@@ -446,12 +460,8 @@ def run_simulation() -> Response:
     
     # Parse time range
     try:
-        start_time = datetime.fromisoformat(
-            data.get('start_time', _now_utc().isoformat()).replace('Z', '+00:00')
-        )
-        end_time = datetime.fromisoformat(
-            data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()).replace('Z', '+00:00')
-        )
+        start_time = parse_iso_utc(data.get('start_time', _now_utc().isoformat()))
+        end_time = parse_iso_utc(data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()))
     except ValueError as e:
         return jsonify({
             'error': 'Ungültiges Zeitformat',
@@ -529,7 +539,7 @@ def run_nbody_simulation() -> Response:
         step_days: float (0.01-365, default 1.0)
         sample_every: int (1-1000, default 1)
     """
-    from nbody import simulate_nbody
+    from nbody import simulate_nbody, MAX_NBODY_STEPS, MAX_NBODY_SAMPLES
 
     data = request.get_json()
     if not data:
@@ -543,9 +553,7 @@ def run_nbody_simulation() -> Response:
         return jsonify({'error': 'Keine Koerper angegeben'}), 400
 
     try:
-        start_time = datetime.fromisoformat(
-            data.get('start_time', _now_utc().isoformat()).replace('Z', '+00:00')
-        ).replace(tzinfo=None)
+        start_time = parse_iso_utc(data.get('start_time', _now_utc().isoformat()))
     except ValueError as e:
         return jsonify({'error': 'Ungueltiges start_time-Format', 'message': str(e)}), 400
 
@@ -564,9 +572,7 @@ def run_nbody_simulation() -> Response:
             return jsonify({'error': 'duration_days zu gross (max 1M Jahre)'}), 400
     else:
         try:
-            end_time = datetime.fromisoformat(
-                data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()).replace('Z', '+00:00')
-            ).replace(tzinfo=None)
+            end_time = parse_iso_utc(data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()))
         except ValueError as e:
             return jsonify({'error': 'Ungueltiges end_time-Format', 'message': str(e)}), 400
 
@@ -581,6 +587,30 @@ def run_nbody_simulation() -> Response:
         sample_every = min(max(sample_every, 1), 1000)
     except (ValueError, TypeError):
         sample_every = 1
+
+    # OOM-Schutz: Schritt- und Snapshot-Zahl pruefen BEVOR simulate_nbody
+    # Arrays allokiert. Ohne Cap reicht ein POST (1 Mio Jahre @ 0.01 d)
+    # fuer Arrays im GB-Bereich -> OOM im 2G-Container.
+    actual_days = duration_days if duration_days is not None else \
+                  (end_time - start_time).total_seconds() / 86400.0
+    n_steps_est = max(1, int(round(actual_days / step_days)))
+    if n_steps_est > MAX_NBODY_STEPS:
+        return jsonify({
+            'error': 'Simulationsumfang zu gross',
+            'message': f'{n_steps_est:,} Schritte uebersteigen das Limit von '
+                       f'{MAX_NBODY_STEPS:,}. Erhoehe step_days oder reduziere die Dauer.',
+            'n_steps_required': n_steps_est,
+            'max_steps': MAX_NBODY_STEPS
+        }), 400
+    n_samples_est = n_steps_est // sample_every + 2
+    if n_samples_est > MAX_NBODY_SAMPLES:
+        return jsonify({
+            'error': 'Zu viele Snapshots',
+            'message': f'{n_samples_est:,} Snapshots uebersteigen das Limit von '
+                       f'{MAX_NBODY_SAMPLES:,}. Erhoehe sample_every.',
+            'n_samples_required': n_samples_est,
+            'max_samples': MAX_NBODY_SAMPLES
+        }), 400
 
     bodies_data = []
     for bid in body_ids:
@@ -604,8 +634,6 @@ def run_nbody_simulation() -> Response:
     # nur halb so teuer pro Schritt.
     integrator = data.get('integrator', 'auto')
     if integrator == 'auto':
-        actual_days = duration_days if duration_days is not None else \
-                      (end_time - start_time).total_seconds() / 86400.0
         integrator = 'verlet' if actual_days > 365.25 * 5000 else 'rk4'
     if integrator not in ('rk4', 'verlet'):
         return jsonify({'error': f'Ungueltiger integrator: {integrator!r}'}), 400
@@ -800,7 +828,7 @@ def convert_time() -> Response:
             
     elif 'iso' in request.args:
         try:
-            dt = datetime.fromisoformat(request.args['iso'].replace('Z', '+00:00'))
+            dt = parse_iso_utc(request.args['iso'])
             # Calculate Julian Date
             j2000 = datetime(2000, 1, 1, 12, 0, 0)
             days_since_j2000 = (dt - j2000).total_seconds() / 86400
@@ -849,12 +877,8 @@ def get_ephemeris() -> Response:
     
     # Parse date range
     try:
-        start_date = datetime.fromisoformat(
-            request.args.get('start_date', _now_utc().strftime('%Y-%m-%d'))
-        )
-        end_date = datetime.fromisoformat(
-            request.args.get('end_date', (_now_utc() + timedelta(days=30)).strftime('%Y-%m-%d'))
-        )
+        start_date = parse_iso_utc(request.args.get('start_date', _now_utc().strftime('%Y-%m-%d')))
+        end_date = parse_iso_utc(request.args.get('end_date', (_now_utc() + timedelta(days=30)).strftime('%Y-%m-%d')))
     except ValueError:
         return jsonify({'error': 'Ungültiges Datumsformat'}), 400
     
