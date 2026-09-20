@@ -33,6 +33,10 @@ def parse_iso_utc(value: str) -> datetime:
     abgeschnitten ('+02:00' -> -2h). ValueError propagiert -> Aufrufer
     antwortet 400.
     """
+    # Explizites null im JSON (z.B. "start_time": null) landete sonst als
+    # AttributeError im 500er — klar als ValueError melden -> HTTP 400.
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f'Ungültiger Zeitstempel: {value!r} (erwartet: ISO-8601-String)')
     dt = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)

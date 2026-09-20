@@ -376,6 +376,9 @@ async function loadData() {
     try {
         // Load bodies
         const bodiesResponse = await fetch(`${CONFIG.API_BASE}/bodies?include_orbits=true`);
+        if (!bodiesResponse.ok) {
+            throw new Error(`HTTP ${bodiesResponse.status} beim Laden der Himmelskörper`);
+        }
         const bodiesData = await bodiesResponse.json();
         
         AppState.bodies = bodiesData.bodies;
@@ -395,6 +398,7 @@ async function loadData() {
         // Load Planet-9 data
         try {
             const p9Response = await fetch(`${CONFIG.API_BASE}/planet9/search`);
+            if (!p9Response.ok) throw new Error(`HTTP ${p9Response.status}`);
             AppState.planet9Data = await p9Response.json();
         } catch (e) {
             console.log('Planet-9 data not available');
@@ -415,6 +419,7 @@ async function fetchPosition(bodyId, timestamp) {
     const ts = timestamp.toISOString();
     try {
         const response = await fetch(`${CONFIG.API_BASE}/position/${bodyId}/${encodeURIComponent(ts)}`);
+        if (!response.ok) return null;
         return await response.json();
     } catch (error) {
         console.error(`Error fetching position for ${bodyId}:`, error);
@@ -1154,6 +1159,31 @@ function updateTimeDisplay() {
  */
 function showError(message) {
     console.error(message);
+    // Sichtbares Banner statt stillem console.error — absichtlich mit
+    // Inline-Styles statt CSS-Klasse: wenn style.css selbst nicht lädt,
+    // muss der Fehler trotzdem sichtbar sein.
+    let banner = document.getElementById('error-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'error-banner';
+        banner.setAttribute('role', 'alert');
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+            'background:#b00020;color:#fff;padding:12px 48px 12px 16px;' +
+            'font:14px/1.4 Arial,sans-serif;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.5);';
+        const textEl = document.createElement('span');
+        textEl.id = 'error-banner-text';
+        banner.appendChild(textEl);
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.setAttribute('aria-label', 'Schließen');
+        closeBtn.style.cssText = 'position:absolute;right:8px;top:50%;transform:translateY(-50%);' +
+            'background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 10px;';
+        closeBtn.addEventListener('click', () => banner.remove());
+        banner.appendChild(closeBtn);
+        document.body.appendChild(banner);
+    }
+    const textEl = document.getElementById('error-banner-text');
+    if (textEl) textEl.textContent = message;
 }
 
 // =============================================================================

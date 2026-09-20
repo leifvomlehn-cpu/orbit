@@ -84,8 +84,15 @@ def solve_kepler(M: float, e: float, tolerance: float = 1e-10) -> float:
         return M  # Circular orbit
     
     if e >= 1.0:
-        # Parabolic/hyperbolic orbit - use different method
-        return solve_kepler_hyperbolic(M, e)
+        # Fail-fast statt still falsch zu rechnen: der hyperbolische Pfad
+        # (solve_kepler_hyperbolic + cosh-Zweige in calculate_true_anomaly /
+        # calculate_position) ist numerisch nicht verifiziert und liefert
+        # falsche Positionen ohne Fehlermeldung. Korrekte Implementierung
+        # kommt mit Sprint C (JPL-Horizons) — bis dahin klar ablehnen.
+        raise ValueError(
+            f'Exzentrizität e={e} >= 1 (parabolisch/hyperbolisch) wird '
+            'derzeit nicht unterstützt — nur geschlossene Bahnen (e < 1).'
+        )
     
     # Initial guess
     E = M + e * math.sin(M) if e < 0.8 else math.pi
@@ -306,7 +313,16 @@ def calculate_orbit_path(elements: Dict[str, float], num_points: int = 360) -> D
     # Handle special case
     if a == 0:
         return {'x': [0.0], 'y': [0.0], 'z': [0.0]}
-    
+
+    if e >= 1.0:
+        # Fail-fast wie in solve_kepler: für e >= 1 wird der Nenner
+        # 1 + e*cos(nu) null/negativ -> ZeroDivisionError oder negative
+        # Radien statt klarer Fehlermeldung.
+        raise ValueError(
+            f'Exzentrizität e={e} >= 1 (parabolisch/hyperbolisch) wird '
+            'derzeit nicht unterstützt — nur geschlossene Bahnen (e < 1).'
+        )
+
     # Convert angles to radians
     i = math.radians(i_deg)
     omega = math.radians(omega_deg)
@@ -495,6 +511,46 @@ def _generate_probability_map(confidence: str) -> List[Dict[str, float]]:
     return probability_points
 
 
+def _circular_mean_deg(angles_deg: List[float]) -> float:
+    """Zirkulärer Mittelwert von Winkeln (Grad) via atan2(sin, cos).
+
+    Wrap-sicher bei 0°/360°: 359° und 1° ergeben ~0°, nicht 180° wie beim
+    linearen Mittel. Genau der Fehler machte die alte TNO-Winkelstatistik
+    (np.mean über Perihel-Argumente um ~300° und ~110°) bedeutungslos.
+    """
+    rad = [math.radians(a) for a in angles_deg]
+    sin_mean = sum(math.sin(r) for r in rad) / len(rad)
+    cos_mean = sum(math.cos(r) for r in rad) / len(rad)
+    mean = math.degrees(math.atan2(sin_mean, cos_mean)) % 360.0
+    # Float-Rundung: -1e-14 % 360 ergibt 360.0 statt 0.0 — auf [0, 360) mappen
+    return 0.0 if math.isclose(mean, 360.0, abs_tol=1e-9) else mean
+
+
+def _circular_std_deg(angles_deg: List[float]) -> float:
+    """Zirkuläre Standardabweichung (Grad): sqrt(-2 ln R) mit R =
+    Resultantenlänge. R -> 1 (eng geclustert) ergibt std -> 0."""
+    rad = [math.radians(a) for a in angles_deg]
+    sin_mean = sum(math.sin(r) for r in rad) / len(rad)
+    cos_mean = sum(math.cos(r) for r in rad) / len(rad)
+    R = math.sqrt(sin_mean ** 2 + cos_mean ** 2)
+    if R <= 0:
+        return float('inf')
+    return math.degrees(math.sqrt(-2.0 * math.log(R)))
+
+
+def _circular_median_deg(angles_deg: List[float]) -> float:
+    """Zirkulärer Median: Winkel um den zirkulären Mittelwert rotieren,
+    linearen Median bilden, zurückrotieren."""
+    mean = _circular_mean_deg(angles_deg)
+    rotated = sorted((a - mean + 180.0) % 360.0 for a in angles_deg)
+    n = len(rotated)
+    if n % 2 == 1:
+        med = rotated[n // 2]
+    else:
+        med = (rotated[n // 2 - 1] + rotated[n // 2]) / 2.0
+    return (med + mean - 180.0) % 360.0
+
+
 def calculate_tno_clustering() -> Dict[str, Any]:
     """
     Analyze TNO orbital clustering for Planet-9 evidence.
@@ -526,9 +582,10 @@ def calculate_tno_clustering() -> Dict[str, Any]:
     clustering_analysis = {
         'total_objects_analyzed': len(clustered_tnos),
         'argument_perihelion_stats': {
-            'mean': round(np.mean(arguments), 2),
-            'std': round(np.std(arguments), 2),
-            'median': round(np.median(arguments), 2)
+            'mean': round(_circular_mean_deg(arguments), 2),
+            'std': round(_circular_std_deg(arguments), 2),
+            'median': round(_circular_median_deg(arguments), 2),
+            'method': 'circular (atan2 über sin/cos) — wrap-sicher bei 0°/360°'
         },
         'inclination_stats': {
             'mean': round(np.mean(inclinations), 2),

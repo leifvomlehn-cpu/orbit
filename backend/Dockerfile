@@ -41,4 +41,7 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget -q --spider http://localhost:5000/api/health || exit 1
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "600", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "app:app"]
+# 1 Worker + 8 Threads statt 2x4: SimpleCache lebt pro Worker-Prozess — mit
+# 2 Workern halbiert sich die Hit-Rate und Antworten unterscheiden sich je
+# nach getroffenem Worker. Numba/numpy geben das GIL frei, Threads reichen.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "8", "--timeout", "600", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "app:app"]
