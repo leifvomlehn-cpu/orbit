@@ -205,6 +205,9 @@ def get_all_bodies() -> Response:
                 'name': body_data['name'],
                 'name_de': body_data['name_de'],
                 'category': 'tno',
+                # Sprint B: Untertyp mitliefern, damit der Extreme-Filter im
+                # Frontend greifen kann (war im alten Frontend still leer).
+                'tno_type': body_data.get('tno_type'),
                 'color': body_data['color'],
                 'orbital_elements': body_data['orbital_elements'],
                 'physical_data': body_data['physical_data'],

@@ -280,3 +280,25 @@ class TestNbodyLimits:
             'sample_every': 1,
         })
         assert r.status_code == 200
+
+
+
+class TestBodiesTnoType:
+    """Sprint B: /api/bodies liefert tno_type mit, damit der Extreme-Filter
+    im React-Frontend greift (vorher war der Tab still leer, weil category
+    fuer TNOs hart auf 'tno' gesetzt wurde)."""
+
+    def test_sedna_is_sednoid(self, client):
+        d = client.get('/api/bodies?category=tnos').get_json()
+        sedna = next((b for b in d['bodies'] if b['id'] == 'sedna'), None)
+        assert sedna is not None
+        assert sedna.get('tno_type') == 'sednoid'
+
+    def test_extreme_tno_type_present(self, client):
+        d = client.get('/api/bodies?category=tnos').get_json()
+        types = {b.get('tno_type') for b in d['bodies']}
+        assert 'extreme_tno' in types
+
+    def test_planets_have_no_tno_type_key(self, client):
+        d = client.get('/api/bodies?category=planets').get_json()
+        assert all('tno_type' not in b for b in d['bodies'])

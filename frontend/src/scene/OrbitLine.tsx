@@ -1,0 +1,34 @@
+import { useMemo } from 'react'
+import { Line } from '@react-three/drei'
+import type { OrbitPath } from '../types'
+
+interface OrbitLineProps {
+  path: OrbitPath
+  color: string
+  /** Planet-9-Vorhersagebahn wird gestrichelt gezeichnet */
+  dashed?: boolean
+}
+
+/** Kepler-Bahnpfad als Linie (Ekliptik-Arrays → Szene: x, z, −y). */
+export default function OrbitLine({ path, color, dashed = false }: OrbitLineProps) {
+  const points = useMemo(() => {
+    const pts: [number, number, number][] = []
+    for (let k = 0; k < path.x.length; k++) {
+      pts.push([path.x[k], path.z[k], -path.y[k]])
+    }
+    return pts
+  }, [path])
+
+  return (
+    <Line
+      points={points}
+      color={color}
+      lineWidth={1}
+      transparent
+      opacity={0.45}
+      dashed={dashed}
+      dashSize={0.5}
+      gapSize={0.25}
+    />
+  )
+}
