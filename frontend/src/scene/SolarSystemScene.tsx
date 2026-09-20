@@ -24,7 +24,7 @@ export default function SolarSystemScene() {
         onPointerMissed={() => dispatch({ type: 'body/select', id: null })}
       >
         <color attach="background" args={['#0a0a1a']} />
-        <ambientLight intensity={0.35} />
+        <ambientLight intensity={0.45} />
         <pointLight position={[0, 0, 0]} intensity={2.5} decay={0} color="#fff5e0" />
         <Stars radius={300} depth={100} count={4000} factor={4} fade speed={0} />
         <SimulationTicker />

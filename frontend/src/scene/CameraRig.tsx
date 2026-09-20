@@ -41,7 +41,7 @@ export default function CameraRig({ mode }: { mode: ViewMode }) {
         enableDamping
         dampingFactor={0.08}
         minDistance={0.5}
-        maxDistance={800}
+        maxDistance={1500}
       />
     </>
   )
