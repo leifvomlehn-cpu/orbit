@@ -2029,7 +2029,7 @@ function drawNbodyOrbit(ctx, bodyId) {
             y = r.y;
         }
         const sx = sunX + x * scale;
-        const sy = sunY + y * scale;
+        const sy = sunY - y * scale;
         if (i === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
     });
@@ -2321,7 +2321,7 @@ function drawTrajectories(ctx, trajectories, dashed) {
                 y = r.y;
             }
             const sx = sunX + x * scale;
-            const sy = sunY + y * scale;
+            const sy = sunY - y * scale;
             if (i === 0) ctx.moveTo(sx, sy);
             else ctx.lineTo(sx, sy);
         });
