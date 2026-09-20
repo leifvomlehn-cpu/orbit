@@ -53,6 +53,7 @@ export default function InfoPanel() {
               <div className="info-body-name-de">{body.name}</div>
             </div>
 
+            {el && (
             <div className="info-section">
               <h3>📐 Bahn</h3>
               <div className="info-stats">
@@ -80,6 +81,7 @@ export default function InfoPanel() {
                 )}
               </div>
             </div>
+            )}
 
             {phys && (
               <div className="info-section">

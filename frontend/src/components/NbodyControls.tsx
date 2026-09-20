@@ -32,8 +32,8 @@ export default function NbodyControls() {
       }
 
       const params = nbodyCompareParams(years)
-      const simBodies = [...DEMO_PERTURBERS]
-      if (!simBodies.includes(bodyId as (typeof simBodies)[number])) simBodies.push(bodyId)
+      const simBodies: string[] = [...DEMO_PERTURBERS]
+      if (!simBodies.includes(bodyId)) simBodies.push(bodyId)
 
       dispatch({ type: 'nbody/started', bodyId })
       runNbodySimulation({
