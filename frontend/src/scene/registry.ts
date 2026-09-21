@@ -13,6 +13,8 @@ export interface BodyEntry {
   elements: OrbitalElements
   category: string
   radiusUnits: number
+  /** körperabhängige Bildschirm-Untergrenze in px (minRadiusPx, einmal bei der Registrierung berechnet) */
+  minPx: number
   group: Group
   scaleGroup: Group
   labelAnchor: Group

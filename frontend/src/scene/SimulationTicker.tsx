@@ -87,7 +87,7 @@ export default function SimulationTicker() {
         upp = (2 * Math.hypot(dx, dy, dz) * tanHalfFov) / size.height
       }
 
-      const scale = screenFloorScale(entry.radiusUnits, upp)
+      const scale = screenFloorScale(entry.radiusUnits, upp, entry.minPx)
       entry.scaleGroup.scale.setScalar(scale)
       // Label knapp über die sichtbare Kugel legen
       entry.labelAnchor.position.y = entry.radiusUnits * scale * 1.3

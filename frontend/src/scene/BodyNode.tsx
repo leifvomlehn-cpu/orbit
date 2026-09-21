@@ -4,7 +4,7 @@ import { AdditiveBlending, BackSide, MathUtils, ShaderMaterial } from 'three'
 import type { Group } from 'three'
 import type { CelestialBody } from '../types'
 import { useAppDispatch, useAppState } from '../state/AppContext'
-import { baseRadiusUnits, isStationary } from './sizing'
+import { baseRadiusUnits, isStationary, minRadiusPx } from './sizing'
 import { getBodyEntry, registerBody, unregisterBody } from './registry'
 import PlanetRings from './PlanetRings'
 import { bodyTextureFile, useBodyTexture } from './textures'
@@ -91,6 +91,7 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
       elements: body.orbital_elements,
       category: body.category,
       radiusUnits: radius,
+      minPx: minRadiusPx(body.physical_data.radius_km),
       group,
       scaleGroup,
       labelAnchor,

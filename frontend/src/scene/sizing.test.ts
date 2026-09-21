@@ -6,6 +6,8 @@ import {
   EXAGGERATION,
   KM_PER_AU,
   MIN_RADIUS_PX,
+  MIN_RADIUS_PX_FLOOR,
+  minRadiusPx,
   ringRadiusUnits,
   screenFloorScale,
 } from './sizing'
@@ -72,6 +74,37 @@ describe('baseRadiusUnits', () => {
   })
 })
 
+describe('minRadiusPx', () => {
+  it('gibt erdgroßen Körpern die Referenz-Untergrenze', () => {
+    expect(minRadiusPx(6371)).toBe(MIN_RADIUS_PX)
+  })
+
+  it('deckelt große Körper bei der Referenz (Jupiter, Sonne)', () => {
+    expect(minRadiusPx(69911)).toBe(MIN_RADIUS_PX)
+    expect(minRadiusPx(696_340)).toBe(MIN_RADIUS_PX)
+  })
+
+  it('staffelt kleine Körper sichtbar: Erde > Mars > Merkur > Pluto', () => {
+    const earth = minRadiusPx(6371)
+    const mars = minRadiusPx(3390)
+    const mercury = minRadiusPx(2440)
+    const pluto = minRadiusPx(1188.3)
+    expect(earth).toBeGreaterThan(mars)
+    expect(mars).toBeGreaterThan(mercury)
+    expect(mercury).toBeGreaterThan(pluto)
+  })
+
+  it('lässt keinen Körper unter die absolute Sichtbarkeitsgrenze fallen (Ceres)', () => {
+    expect(minRadiusPx(473)).toBe(MIN_RADIUS_PX_FLOOR)
+  })
+
+  it('fängt ungültige Radien ab (→ Referenz-Untergrenze)', () => {
+    expect(minRadiusPx(0)).toBe(MIN_RADIUS_PX)
+    expect(minRadiusPx(-5)).toBe(MIN_RADIUS_PX)
+    expect(minRadiusPx(Number.NaN)).toBe(MIN_RADIUS_PX)
+  })
+})
+
 describe('screenFloorScale', () => {
   it('lässt große Körper unverändert (echte Proportion, Faktor 1)', () => {
     // Radius 0.7 Units bei 0.001 Units/px → 700 px weit über dem Floor
@@ -91,6 +124,19 @@ describe('screenFloorScale', () => {
     expect(screenFloorScale(0, 1)).toBe(1)
     expect(screenFloorScale(0.1, 0)).toBe(1)
     expect(screenFloorScale(-1, -1)).toBe(1)
+    expect(screenFloorScale(0.1, 1, 0)).toBe(1)
+    expect(screenFloorScale(0.1, 1, Number.NaN)).toBe(1)
+  })
+
+  it('respektiert eine körperabhängige Untergrenze (Pluto kleiner als Erde)', () => {
+    // Gesamtansicht: 2.5 Units/px, Pluto am Kategorie-Floor 0.03 Units, minPx 1.28
+    const plutoMinPx = minRadiusPx(1188.3)
+    const scale = screenFloorScale(0.03, 2.5, plutoMinPx)
+    expect(scale).toBeCloseTo((plutoMinPx * 2.5) / 0.03, 10)
+    // Ergebnis: sichtbarer Radius exakt der körperabhängigen Untergrenze
+    expect(0.03 * scale).toBeCloseTo(plutoMinPx * 2.5, 10)
+    // … und damit kleiner als ein erdgroßer Körper am selben Zoom
+    expect(plutoMinPx).toBeLessThan(MIN_RADIUS_PX)
   })
 })
 

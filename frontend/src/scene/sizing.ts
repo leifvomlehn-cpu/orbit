@@ -4,12 +4,44 @@ import type { CelestialBody } from '../types'
 export const KM_PER_AU = 149_597_870.7
 
 /**
- * Untere Bildschirm-Grenze: Radius in px. Fällt die projizierte Größe
- * darunter, wird das Mesh hochskaliert (Planetarium-Verhalten wie
- * Celestia/Stellarium) — sonst wären Körper in der Gesamtansicht
- * (Sedna-Aphel ~937 AU, 1 px ≈ 2.5 AU) Bruchteile eines Pixels.
+ * Bildschirm-Untergrenze: Radius in px für einen erdgroßen Körper. Fällt
+ * die projizierte Größe darunter, wird das Mesh hochskaliert
+ * (Planetarium-Verhalten wie Celestia/Stellarium) — sonst wären Körper in
+ * der Gesamtansicht (Sedna-Aphel ~937 AU, 1 px ≈ 2.5 AU) Bruchteile eines
+ * Pixels. Kleinere Körper bekommen eine kleinere Untergrenze
+ * (minRadiusPx), damit die Größenordnungen sichtbar bleiben, statt dass
+ * alle Körper am selben Floor kleben.
  */
 export const MIN_RADIUS_PX = 2.5
+
+/**
+ * Absolute Sichtbarkeits-Untergrenze in px: kein Körper wird kleiner
+ * gerendert — darunter wäre er nicht mehr als Punkt erkennbar.
+ */
+export const MIN_RADIUS_PX_FLOOR = 1.0
+
+/** Referenzradius für die Untergrenzen-Staffelung (Erde). */
+export const EARTH_RADIUS_KM = 6371
+
+/**
+ * Staffelungs-Exponent der Untergrenze: 0 = alle Körper gleiche Untergrenze
+ * (altes Verhalten), 1 = echte Proportion. 0.4 hält Kleinkörper sichtbar
+ * und lässt gleichzeitig die Ordnung Erde > Mars > Merkur > Pluto
+ * erkennen (Mars ≈ 1.9 px, Merkur ≈ 1.7 px, Pluto ≈ 1.3 px).
+ */
+export const MIN_PX_EXPONENT = 0.4
+
+/**
+ * Körperabhängige Bildschirm-Untergrenze in px: MIN_RADIUS_PX für
+ * erdgroße und größere Körper, gestaffelt nach unten für kleinere, nie
+ * unter MIN_RADIUS_PX_FLOOR. Ungültige Radien fallen auf MIN_RADIUS_PX
+ * zurück (altes, sicheres Verhalten).
+ */
+export function minRadiusPx(radiusKm: number): number {
+  if (!(radiusKm > 0) || !Number.isFinite(radiusKm)) return MIN_RADIUS_PX
+  const scaled = MIN_RADIUS_PX * Math.pow(radiusKm / EARTH_RADIUS_KM, MIN_PX_EXPONENT)
+  return Math.min(MIN_RADIUS_PX, Math.max(MIN_RADIUS_PX_FLOOR, scaled))
+}
 
 /**
  * Übertreibung gegenüber physikalischen Radien (Erde real: 0.00004 AU —
@@ -58,13 +90,19 @@ export function baseRadiusUnits(body: CelestialBody): number {
 
 /**
  * Skalierfaktor für die Bildschirm-Untergrenze: 1 = echte Proportion
- * (nah genug herangezoomt), > 1 = auf MIN_RADIUS_PX hochskaliert.
+ * (nah genug herangezoomt), > 1 = auf minPx hochskaliert. minPx kommt
+ * körperabhängig aus minRadiusPx (Default: MIN_RADIUS_PX).
  * unitsPerPixel = sichtbare Scene-Units je Bildschirm-Pixel (ortho:
  * Frustum-Höhe / zoom / Höhe px; perspektivisch: 2·d·tan(fov/2) / Höhe px).
  */
-export function screenFloorScale(radiusUnits: number, unitsPerPixel: number): number {
+export function screenFloorScale(
+  radiusUnits: number,
+  unitsPerPixel: number,
+  minPx: number = MIN_RADIUS_PX,
+): number {
   if (radiusUnits <= 0 || !(unitsPerPixel > 0) || !Number.isFinite(unitsPerPixel)) return 1
-  return Math.max(1, (MIN_RADIUS_PX * unitsPerPixel) / radiusUnits)
+  if (!(minPx > 0) || !Number.isFinite(minPx)) return 1
+  return Math.max(1, (minPx * unitsPerPixel) / radiusUnits)
 }
 
 /**
