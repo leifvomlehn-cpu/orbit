@@ -10,6 +10,11 @@ Data Sources:
 - NASA JPL Horizons
 - Minor Planet Center
 - Batygin & Brown (2025) Planet-9 research
+- NSSDCA Planetary Factsheets: rotation_period_hours (siderisch, negativ =
+  retrograd), obliquity_deg, albedo_geometric, rings (Radien in km,
+  optical_depth; bei Bereichen der repraesentative Wert)
+- Zwergplaneten teils Sekundaerquellen (NASA Science, Okkultations-Literatur);
+  nicht belastbar belegte Werte sind None statt geschaetzt
 
 Author: IQI Hub Code Engine
 Date: 2026-04-06
@@ -76,7 +81,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 2439.7,
             'surface_gravity_m_s2': 3.7,
             'escape_velocity_km_s': 4.25,
-            'moons': 0
+            'moons': 0,
+            'rotation_period_hours': 1407.6,
+            'obliquity_deg': 0.034,
+            'albedo_geometric': 0.142
         },
         'description_de': 'Merkur ist der kleinste Planet und der Sonne am nächsten. Ein Tag auf dem Merkur dauert 59 Erdentage, aber ein Jahr nur 88 Erdentage!',
         'fun_fact_de': 'Obwohl er der Sonne am nächsten ist, ist Merkur nachts eiskalt - bis zu -180°C!'
@@ -104,7 +112,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 6051.8,
             'surface_gravity_m_s2': 8.87,
             'escape_velocity_km_s': 10.36,
-            'moons': 0
+            'moons': 0,
+            'rotation_period_hours': -5832.6,  # retrograd (NSSDCA)
+            'obliquity_deg': 177.36,
+            'albedo_geometric': 0.689
         },
         'description_de': 'Die Venus ist fast so groß wie die Erde und hat die heißeste Oberfläche aller Planeten - über 460°C! Ihre dichte Atmosphäre besteht hauptsächlich aus Kohlendioxid.',
         'fun_fact_de': 'Die Venus dreht sich rückwärts - die Sonne geht dort im Westen auf!'
@@ -132,7 +143,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 6371.0,
             'surface_gravity_m_s2': 9.81,
             'escape_velocity_km_s': 11.19,
-            'moons': 1
+            'moons': 1,
+            'rotation_period_hours': 23.9345,
+            'obliquity_deg': 23.44,
+            'albedo_geometric': 0.434
         },
         'description_de': 'Die Erde ist unser Heimatplanet - der einzige bekannte Planet mit Leben! Sie hat flüssiges Wasser an der Oberfläche und eine Atmosphäre, die uns schützt.',
         'fun_fact_de': 'Die Erde ist nicht perfekt rund - sie ist an den Polen etwas abgeplattet!'
@@ -160,7 +174,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 3389.5,
             'surface_gravity_m_s2': 3.71,
             'escape_velocity_km_s': 5.03,
-            'moons': 2
+            'moons': 2,
+            'rotation_period_hours': 24.6229,
+            'obliquity_deg': 25.19,
+            'albedo_geometric': 0.170
         },
         'description_de': 'Der Mars wird auch der "Rote Planet" genannt wegen seines eisenhaltigen Staubs. Er hat den größten Vulkan des Sonnensystems - den Olympus Mons!',
         'fun_fact_de': 'Ein Tag auf dem Mars dauert fast genauso lange wie auf der Erde - 24 Stunden und 37 Minuten!'
@@ -191,7 +208,18 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 69911,
             'surface_gravity_m_s2': 24.79,
             'escape_velocity_km_s': 59.5,
-            'moons': 95
+            'moons': 95,
+            'rotation_period_hours': 9.925,  # System III (NSSDCA)
+            'obliquity_deg': 3.13,
+            'albedo_geometric': 0.538,
+            # NSSDCA Jupiter Rings Fact Sheet (tau = optische Tiefe)
+            'rings': [
+                {'name': 'Halo', 'inner_radius_km': 89400, 'outer_radius_km': 123000, 'optical_depth': 3e-6},
+                {'name': 'Main', 'inner_radius_km': 123000, 'outer_radius_km': 128940, 'optical_depth': 5e-6},
+                {'name': 'Amalthea', 'inner_radius_km': 128940, 'outer_radius_km': 181350, 'optical_depth': 1e-7},
+                {'name': 'Thebe', 'inner_radius_km': 181350, 'outer_radius_km': 221900, 'optical_depth': 1e-7},
+                {'name': 'Thebe Extension', 'inner_radius_km': 221900, 'outer_radius_km': 280000, 'optical_depth': 1e-7},
+            ]
         },
         'description_de': 'Jupiter ist der größte Planet - er ist mehr als doppelt so massereich wie alle anderen Planeten zusammen! Der Große Rote Fleck ist ein riesiger Sturm, der schon seit hunderten Jahren tobt.',
         'fun_fact_de': 'Auf Jupiter passen über 1300 Erden hinein!'
@@ -219,7 +247,21 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 58232,
             'surface_gravity_m_s2': 10.44,
             'escape_velocity_km_s': 35.5,
-            'moons': 146
+            'moons': 146,
+            'rotation_period_hours': 10.656,  # System III (NSSDCA)
+            'obliquity_deg': 26.73,
+            'albedo_geometric': 0.499,
+            # NSSDCA Saturn Rings Fact Sheet; Cassini-Teilung (117507-122340 km)
+            # ist eine Luecke, kein Ring — bewusst nicht als Eintrag.
+            'rings': [
+                {'name': 'D', 'inner_radius_km': 66900, 'outer_radius_km': 74510, 'optical_depth': 1e-5},
+                {'name': 'C', 'inner_radius_km': 74658, 'outer_radius_km': 91975, 'optical_depth': 0.2},
+                {'name': 'B', 'inner_radius_km': 91975, 'outer_radius_km': 117507, 'optical_depth': 1.0},
+                {'name': 'A', 'inner_radius_km': 122340, 'outer_radius_km': 136780, 'optical_depth': 0.7},
+                {'name': 'F', 'inner_radius_km': 139826, 'outer_radius_km': 139826, 'optical_depth': 0.1},
+                {'name': 'G', 'inner_radius_km': 166000, 'outer_radius_km': 173000, 'optical_depth': 1e-6},
+                {'name': 'E', 'inner_radius_km': 180000, 'outer_radius_km': 480000, 'optical_depth': 1e-6},
+            ]
         },
         'description_de': 'Saturn ist berühmt für seine wunderschönen Ringe aus Eis und Gestein. Er ist so leicht, dass er auf Wasser schwimmen würde - wenn es ein Badewanne groß genug gäbe!',
         'fun_fact_de': 'Saturns Ringe sind nur etwa 10 Meter dick, aber über 280.000 Kilometer breit!'
@@ -247,7 +289,23 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 25362,
             'surface_gravity_m_s2': 8.87,
             'escape_velocity_km_s': 21.3,
-            'moons': 28
+            'moons': 28,
+            'rotation_period_hours': -17.24,  # retrograd (NSSDCA, Voyager-2)
+            'obliquity_deg': 97.77,
+            'albedo_geometric': 0.488,
+            # NSSDCA Uranus Rings Fact Sheet; Breiten aus Factsheet-Angaben
+            'rings': [
+                {'name': '6', 'inner_radius_km': 41830, 'outer_radius_km': 41845, 'optical_depth': 0.3},
+                {'name': '5', 'inner_radius_km': 42227, 'outer_radius_km': 42242, 'optical_depth': 0.5},
+                {'name': '4', 'inner_radius_km': 42564, 'outer_radius_km': 42579, 'optical_depth': 0.3},
+                {'name': 'Alpha', 'inner_radius_km': 44715, 'outer_radius_km': 44722, 'optical_depth': 0.4},
+                {'name': 'Beta', 'inner_radius_km': 45657, 'outer_radius_km': 45665, 'optical_depth': 0.3},
+                {'name': 'Eta', 'inner_radius_km': 47175, 'outer_radius_km': 47177, 'optical_depth': 0.4},
+                {'name': 'Gamma', 'inner_radius_km': 47626, 'outer_radius_km': 47628, 'optical_depth': 0.3},
+                {'name': 'Delta', 'inner_radius_km': 48298, 'outer_radius_km': 48303, 'optical_depth': 0.5},
+                {'name': 'Lambda', 'inner_radius_km': 50023, 'outer_radius_km': 50025, 'optical_depth': 0.1},
+                {'name': 'Epsilon', 'inner_radius_km': 51120, 'outer_radius_km': 51178, 'optical_depth': 1.0},
+            ]
         },
         'description_de': 'Uranus ist ein Eisriese, der auf der Seite "liegt" - seine Achse ist um fast 98° gekippt! Das bedeutet, dass seine Pole mehr Sonne bekommen als sein Äquator.',
         'fun_fact_de': 'Uranus ist der kälteste Planet mit Temperaturen bis zu -224°C!'
@@ -275,7 +333,18 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 24622,
             'surface_gravity_m_s2': 11.15,
             'escape_velocity_km_s': 23.5,
-            'moons': 16
+            'moons': 16,
+            'rotation_period_hours': 16.11,  # Magneto-Koordinaten (NSSDCA)
+            'obliquity_deg': 28.32,
+            'albedo_geometric': 0.442,
+            # NSSDCA Neptune Rings Fact Sheet; Arago ohne tau-Angabe (None)
+            'rings': [
+                {'name': 'Galle', 'inner_radius_km': 40900, 'outer_radius_km': 42900, 'optical_depth': 1e-4},
+                {'name': 'Lassell', 'inner_radius_km': 51200, 'outer_radius_km': 55200, 'optical_depth': 1e-4},
+                {'name': 'LeVerrier', 'inner_radius_km': 53150, 'outer_radius_km': 53250, 'optical_depth': 0.01},
+                {'name': 'Arago', 'inner_radius_km': 57150, 'outer_radius_km': 57250, 'optical_depth': None},
+                {'name': 'Adams', 'inner_radius_km': 62926, 'outer_radius_km': 62941, 'optical_depth': 0.05},
+            ]
         },
         'description_de': 'Neptun ist der äußerste Planet und hat die stärksten Winde im Sonnensystem - bis zu 2100 km/h! Er wurde durch mathematische Vorhersage entdeckt, bevor man ihn sah.',
         'fun_fact_de': 'Ein Jahr auf dem Neptun dauert 165 Erdjahre - seit seiner Entdeckung 1846 hat er noch nicht einmal einmal die Sonne umkreist!'
@@ -306,7 +375,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 1188.3,
             'surface_gravity_m_s2': 0.62,
             'escape_velocity_km_s': 1.21,
-            'moons': 5
+            'moons': 5,
+            'rotation_period_hours': -153.2928,  # retrograd (NSSDCA Pluto Fact Sheet)
+            'obliquity_deg': 119.51,
+            'albedo_geometric': 0.52
         },
         'description_de': 'Pluto war von 1930 bis 2006 der neunte Planet, dann wurde er zum Zwergplaneten umklassifiziert. Er hat ein Herz aus gefrorenem Stickstoff auf seiner Oberfläche!',
         'fun_fact_de': 'Auf Pluto wäre ein 30kg Kind nur etwa 2kg schwer!',
@@ -340,7 +412,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 469.7,
             'surface_gravity_m_s2': 0.28,
             'escape_velocity_km_s': 0.51,
-            'moons': 0
+            'moons': 0,
+            'rotation_period_hours': 9.074,  # NSSDCA Asteroid Fact Sheet
+            'obliquity_deg': 4.0,  # NASA Science (gerundet)
+            'albedo_geometric': 0.090  # HST-Messung (Li et al. 2006), Sekundaerquelle
         },
         'description_de': 'Ceres ist der größte Asteroid im Hauptgürtel zwischen Mars und Jupiter. Er besteht aus Gestein und Eis und könnte einen unterirdischen Ozean haben!',
         'fun_fact_de': 'Ceres enthält etwa ein Viertel der gesamten Masse des Asteroidengürtels!',
@@ -374,7 +449,12 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 1163,
             'surface_gravity_m_s2': 0.82,
             'escape_velocity_km_s': 1.38,
-            'moons': 1
+            'moons': 1,
+            # 15.786 d, synchron mit Dysnomia (Okkultations-Literatur);
+            # NASA Science nennt abweichend 25.9 h — Literaturwert gewaehlt
+            'rotation_period_hours': 378.864,
+            'obliquity_deg': None,  # nicht belastbar belegt (~78 Grad angenommen)
+            'albedo_geometric': 0.96
         },
         'description_de': 'Eris ist etwa so groß wie Pluto und war der Auslöser für die Neuklassifizierung von Planeten. Ihre Entdeckung führte dazu, dass Pluto zum Zwergplaneten wurde!',
         'fun_fact_de': 'Eris wurde nach der griechischen Göttin der Zwietracht benannt - passend zur Debatte über den Planetenstatus!',
@@ -408,7 +488,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 715,
             'surface_gravity_m_s2': 0.5,
             'escape_velocity_km_s': 0.8,
-            'moons': 1
+            'moons': 1,
+            'rotation_period_hours': 22.8266,  # Lichtkurven-Literatur
+            'obliquity_deg': None,  # nicht belastbar belegt (Spanne 46-78 Grad)
+            'albedo_geometric': 0.82
         },
         'description_de': 'Makemake ist nach dem Schöpfer-Gott der Osterinsel benannt. Er ist der zweithellste Zwergplanet nach Pluto und hat eine rötliche Farbe.',
         'fun_fact_de': 'Makemake hat einen kleinen Mond, der erst 2016 entdeckt wurde!',
@@ -442,7 +525,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 780,  # Approximate - elongated shape
             'surface_gravity_m_s2': 0.44,
             'escape_velocity_km_s': 0.84,
-            'moons': 2
+            'moons': 2,
+            'rotation_period_hours': 3.915341,  # Lichtkurven-Literatur
+            'obliquity_deg': None,  # nicht belastbar belegt (~126 Grad angenommen)
+            'albedo_geometric': 0.51  # Okkultation 2017 (Obergrenze)
         },
         'description_de': 'Haumea ist einzigartig - sie ist ellipsenförmig und dreht sich sehr schnell, etwa alle 4 Stunden! Sie hat zwei kleine Monde und einen Ring.',
         'fun_fact_de': 'Haumea ist nach der hawaiianischen Göttin der Fruchtbarkeit benannt.',
@@ -510,7 +596,10 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
             'radius_km': 555,
             'surface_gravity_m_s2': 0.3,
             'escape_velocity_km_s': 0.6,
-            'moons': 1
+            'moons': 1,
+            'rotation_period_hours': 17.6788,  # Lichtkurven-Literatur
+            'obliquity_deg': 12.6,  # abgeleitet aus Ringebene (Annahme koplanar)
+            'albedo_geometric': 0.124
         },
         'description_de': 'Quaoar ist nach einem Schöpfer-Gott der Tongva-Ureinwohner benannt. Er hat einen Ring, der sich ungewöhnlich weit von ihm entfernt befindet!',
         'fun_fact_de': 'Quaoars Ring ist doppelt so weit von ihm entfernt als theoretisch erwartet!',

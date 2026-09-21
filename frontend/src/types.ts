@@ -18,6 +18,15 @@ export interface OrbitalElements {
   mean_motion_deg_day?: number
 }
 
+/** Ein Ring eines Planeten (orbital_data.py physical_data.rings) */
+export interface RingData {
+  name: string
+  inner_radius_km: number
+  outer_radius_km: number
+  /** optische Tiefe; null = keine Angabe in der Quelle */
+  optical_depth: number | null
+}
+
 /** Physikalische Daten; Pflicht sind mass_kg/radius_km, Rest optional */
 export interface PhysicalData {
   mass_kg: number
@@ -25,6 +34,14 @@ export interface PhysicalData {
   surface_gravity_m_s2?: number
   escape_velocity_km_s?: number
   moons?: number
+  /** siderische Rotationsperiode in h; negativ = retrograd (NSSDCA) */
+  rotation_period_hours?: number | null
+  /** Achsneigung gegen die Bahnebene in Grad; null = nicht belastbar belegt */
+  obliquity_deg?: number | null
+  /** geometrische Albedo (NSSDCA); fehlend = unbekannt */
+  albedo_geometric?: number | null
+  /** nur bei den 4 Gasriesen belegt */
+  rings?: RingData[]
 }
 
 /** Heliozentrische Position (physics.py calculate_position), x/y/z/r in AU */
