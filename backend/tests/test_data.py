@@ -38,6 +38,15 @@ class TestTnoBodies:
         e = TNO_BODIES[tno_id]['orbital_elements']['eccentricity']
         assert 0 <= e < 1, f"{tno_id}: e={e}"
 
+    @pytest.mark.parametrize("tno_id", list(TNO_BODIES.keys()))
+    def test_tno_id_matches_name(self, tno_id):
+        # Regression API-Leichen-Paket: '2004_sedna_minor' enthielt 2004 VN112,
+        # 'makemake_minor' enthielt 2005 RM43 — ID muss zum Namen passen.
+        expected = TNO_BODIES[tno_id]['name'].lower().replace(' ', '_')
+        assert tno_id == expected, (
+            f"ID {tno_id!r} passt nicht zum Namen {TNO_BODIES[tno_id]['name']!r}"
+        )
+
 
 class TestPlanet9:
     def test_orbital_elements_in_range(self):

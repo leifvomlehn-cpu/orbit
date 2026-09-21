@@ -57,17 +57,13 @@ from orbital_data import (
     CELESTIAL_BODIES,
     TNO_BODIES,
     PLANET_9_PREDICTION,
-    TNO_DISCOVERIES,
-    BODY_CATEGORIES,
-    BODY_COLORS
+    BODY_CATEGORIES
 )
 from physics import (
     calculate_position,
     calculate_orbit_path,
-    calculate_all_positions,
     calculate_planet9_search_zone,
-    calculate_tno_clustering,
-    kepler_equation
+    calculate_tno_clustering
 )
 
 # Configure logging
@@ -107,9 +103,6 @@ AU_TO_KM = 149597870.7  # 1 AU in km
 G = 6.67430e-11  # Gravitational constant
 SOLAR_MASS = 1.989e30  # kg
 
-# Deep-Recon #2: Ephemeris-Antworten deckeln — ein GET 1900→2500 mit
-# interval_days=1 erzeugte ~220k Einträge (Speicher + MB-großes JSON).
-MAX_EPHEMERIS_ENTRIES = 2000
 
 
 def handle_errors(f):
@@ -161,7 +154,7 @@ def health_check() -> Response:
         'status': 'healthy',
         'timestamp': _now_utc().isoformat(),
         'service': 'orbital-backend',
-        'version': '1.1.0',
+        'version': '1.2.0',
         'bodies_count': len(CELESTIAL_BODIES) + len(TNO_BODIES),
         'cache_status': 'active'
     })
@@ -489,105 +482,6 @@ def get_orbit(body_id: str) -> Response:
     return jsonify(response)
 
 
-@app.route('/api/simulate', methods=['POST'])
-@handle_errors
-def run_simulation() -> Response:
-    """
-    Run an N-body simulation for specified bodies over a time period.
-    
-    Request Body (JSON):
-        bodies: List of body IDs to simulate
-        start_time: Start timestamp (ISO 8601)
-        end_time: End timestamp (ISO 8601)
-        steps: Number of simulation steps
-        include_planet9: Include Planet-9 in simulation (boolean)
-    
-    Returns:
-        JSON object with simulation results
-    """
-    # silent=True: ungültiges JSON / falscher Content-Type -> None -> 400
-    # statt HTTPException im generischen 500er (Deep-Recon #3).
-    data = request.get_json(silent=True)
-    
-    if not data:
-        return jsonify({
-            'error': 'Keine Daten erhalten',
-            'message': 'Bitte sende JSON-Daten im Request-Body.'
-        }), 400
-    
-    # Validate parameters
-    body_ids = data.get('bodies', [])
-    if not body_ids:
-        body_ids = list(CELESTIAL_BODIES.keys())  # Default to all planets
-    
-    # Parse time range
-    try:
-        start_time = parse_iso_utc(data.get('start_time', _now_utc().isoformat()))
-        end_time = parse_iso_utc(data.get('end_time', (_now_utc() + timedelta(days=365)).isoformat()))
-    except ValueError as e:
-        return jsonify({
-            'error': 'Ungültiges Zeitformat',
-            'message': str(e)
-        }), 400
-    
-    # Get simulation steps
-    try:
-        steps = int(data.get('steps', 100))
-        steps = min(max(steps, 10), 1000)  # Limit between 10 and 1000
-    except ValueError:
-        steps = 100
-    
-    # Calculate time step
-    time_delta = (end_time - start_time) / steps
-    
-    # Run simulation
-    simulation_results = []
-    current_time = start_time
-    
-    for step in range(steps):
-        step_data = {
-            'step': step,
-            'timestamp': current_time.isoformat(),
-            'positions': {}
-        }
-        
-        # Calculate positions for all specified bodies
-        for body_id in body_ids:
-            if body_id in CELESTIAL_BODIES:
-                body_data = CELESTIAL_BODIES[body_id]
-            elif body_id in TNO_BODIES:
-                body_data = TNO_BODIES[body_id]
-            else:
-                continue
-            
-            position = _position_for(body_data, current_time)
-            step_data['positions'][body_id] = position
-        
-        
-        # Include Planet-9 if requested
-        if data.get('include_planet9', False):
-            p9_elements = PLANET_9_PREDICTION['orbital_elements']
-            step_data['positions']['planet9'] = calculate_position(p9_elements, current_time)
-        
-        simulation_results.append(step_data)
-        current_time += time_delta
-    
-    return jsonify({
-        'simulation': {
-            'bodies': body_ids,
-            'start_time': start_time.isoformat(),
-            'end_time': end_time.isoformat(),
-            'steps': steps,
-            'time_step_days': time_delta.total_seconds() / 86400,
-            'results': simulation_results
-        },
-        'metadata': {
-            'calculation_method': 'keplerian',
-            'include_perturbations': False,
-            'note': 'Vereinfachte Kepler-Berechnung ohne N-Body-Perturbationen'
-        }
-    })
-
 
 @app.route('/api/simulate/nbody', methods=['POST'])
 @handle_errors
@@ -767,250 +661,6 @@ def get_planet9_search_zone() -> Response:
     })
 
 
-@app.route('/api/tno/discoveries', methods=['GET'])
-@handle_errors
-@cache.cached(timeout=3600, key_prefix=lambda: (
-    f'tno_disc_limit={request.args.get("limit", "20")}'
-))
-def get_tno_discoveries() -> Response:
-    """
-    Get information about recent TNO discoveries.
-    Includes discovery details and scientific significance.
-    
-    Query Parameters:
-        limit: Maximum number of discoveries to return
-        significance: Filter by significance level
-    
-    Returns:
-        JSON object with TNO discovery data
-    """
-    limit = request.args.get('limit', 20)
-    try:
-        limit = int(limit)
-        limit = min(max(limit, 5), 50)
-    except ValueError:
-        limit = 20
-    
-    # Get TNO data sorted by discovery date
-    discoveries = []
-    for body_id, body_data in TNO_BODIES.items():
-        discovery_info = body_data.get('discovery', {})
-        discoveries.append({
-            'id': body_id,
-            'name': body_data['name'],
-            'name_de': body_data['name_de'],
-            'discovery_date': discovery_info.get('date', 'Unknown'),
-            'discovery_year': discovery_info.get('year', 0),
-            'discoverers': discovery_info.get('discoverers', []),
-            'telescope': discovery_info.get('telescope', 'Unknown'),
-            'semi_major_axis_au': body_data['orbital_elements']['semi_major_axis_au'],
-            'perihelion_au': body_data['orbital_elements']['perihelion_au'],
-            'aphelion_au': body_data['orbital_elements']['aphelion_au'],
-            'eccentricity': body_data['orbital_elements']['eccentricity'],
-            'inclination_deg': body_data['orbital_elements']['inclination_deg'],
-            'significance_de': body_data.get('significance_de', ''),
-            'category': body_data.get('tno_type', 'General TNO'),
-            'color': body_data['color']
-        })
-    
-    # Sort by discovery year (newest first)
-    discoveries.sort(key=lambda x: x['discovery_year'], reverse=True)
-    
-    # Apply limit
-    discoveries = discoveries[:limit]
-    
-    return jsonify({
-        'discoveries': discoveries,
-        'count': len(discoveries),
-        'total_tnos': len(TNO_BODIES),
-        'discovery_timeline': TNO_DISCOVERIES['timeline'],
-        'classification_guide_de': {
-            'detached': 'Gelöste Objekte - Keine signifikante Wechselwirkung mit Neptun',
-            'sednoid': 'Sedna-ähnliche Objekte - Extrem sonnenfern mit ungewöhnlichen Orbits',
-            'scattered': 'Gestreute Scheibe - Durch Neptun in exzentrische Bahnen gestreut',
-            'classical': 'Klassische KBO - Stabile Bahnen im Kuipergürtel',
-            'resonant': 'Resonante KBO - In Bahnresonanz mit Neptun',
-            'extreme_tno': 'Extreme TNOs - Semi-major axis > 150 AU, Perihel > 30 AU'
-        },
-        'research_significance_de': {
-            'planet9_connection': 'Viele extreme TNOs zeigen orbitale Ausrichtungen, die auf die Existenz von Planet-9 hindeuten könnten.',
-            'solar_system_formation': 'TNOs sind Überbleibsel aus der Entstehung des Sonnensystems und helfen uns, die frühe Geschichte zu verstehen.',
-            'primordial': 'Objekte wie Sedna bewahren den ursprünglichen Zustand des frühen Sonnensystems.'
-        }
-    })
-
-
-@app.route('/api/categories', methods=['GET'])
-@handle_errors
-@cache.cached(timeout=3600)
-def get_categories() -> Response:
-    """
-    Get all available body categories with descriptions.
-    
-    Returns:
-        JSON object with category information
-    """
-    return jsonify({
-        'categories': BODY_CATEGORIES,
-        'colors': BODY_COLORS,
-        'legend_de': {
-            'planets': 'Die 8 Planeten unseres Sonnensystems',
-            'dwarf_planets': 'Zwergplaneten wie Pluto und Eris',
-            'tnos': 'Transneptunische Objekte jenseits des Neptun',
-            'extreme_tno': 'Extreme TNOs mit sehr großen Bahnen',
-            'detached': 'Gelöste Objekte ohne Neptun-Wechselwirkung',
-            'planet9': 'Hypothetischer neunter Planet'
-        }
-    })
-
-
-@app.route('/api/time/convert', methods=['GET'])
-@handle_errors
-def convert_time() -> Response:
-    """
-    Convert between different time formats for orbital calculations.
-    
-    Query Parameters:
-        jd: Julian Date
-        mjd: Modified Julian Date
-        iso: ISO 8601 timestamp
-    
-    Returns:
-        JSON object with converted time formats
-    """
-    result = {'input': {}}
-    
-    if 'jd' in request.args:
-        try:
-            jd = float(request.args['jd'])
-            # Julian Date to datetime
-            mjd = jd - 2400000.5
-            days_since_j2000 = jd - 2451545.0
-            dt = datetime(2000, 1, 1, 12, 0, 0) + timedelta(days=days_since_j2000)
-            
-            result['input']['julian_date'] = jd
-            result['modified_julian_date'] = mjd
-            result['iso'] = dt.isoformat()
-            result['days_since_j2000'] = days_since_j2000
-        except ValueError:
-            return jsonify({'error': 'Ungültiges Julian Date Format'}), 400
-            
-    elif 'iso' in request.args:
-        try:
-            dt = parse_iso_utc(request.args['iso'])
-            # Calculate Julian Date
-            j2000 = datetime(2000, 1, 1, 12, 0, 0)
-            days_since_j2000 = (dt - j2000).total_seconds() / 86400
-            jd = 2451545.0 + days_since_j2000
-            
-            result['input']['iso'] = request.args['iso']
-            result['julian_date'] = jd
-            result['modified_julian_date'] = jd - 2400000.5
-            result['days_since_j2000'] = days_since_j2000
-        except ValueError:
-            return jsonify({'error': 'Ungültiges ISO Zeitformat'}), 400
-    else:
-        # Default to now
-        dt = _now_utc()
-        j2000 = datetime(2000, 1, 1, 12, 0, 0)
-        days_since_j2000 = (dt - j2000).total_seconds() / 86400
-        jd = 2451545.0 + days_since_j2000
-        
-        result['input']['current_time'] = 'now'
-        result['julian_date'] = jd
-        result['modified_julian_date'] = jd - 2400000.5
-        result['iso'] = dt.isoformat()
-        result['days_since_j2000'] = days_since_j2000
-    
-    return jsonify(result)
-
-
-@app.route('/api/ephemeris', methods=['GET'])
-@handle_errors
-def get_ephemeris() -> Response:
-    """
-    Generate an ephemeris table for selected bodies.
-    
-    Query Parameters:
-        bodies: Comma-separated list of body IDs
-        start_date: Start date (ISO 8601)
-        end_date: End date (ISO 8601)
-        interval_days: Interval between entries
-    
-    Returns:
-        JSON object with ephemeris data
-    """
-    # Parse body list
-    body_ids = request.args.get('bodies', 'mercury,venus,earth,mars,jupiter,saturn')
-    body_ids = [b.strip().lower() for b in body_ids.split(',')]
-    
-    # Parse date range
-    try:
-        start_date = parse_iso_utc(request.args.get('start_date', _now_utc().strftime('%Y-%m-%d')))
-        end_date = parse_iso_utc(request.args.get('end_date', (_now_utc() + timedelta(days=30)).strftime('%Y-%m-%d')))
-    except ValueError:
-        return jsonify({'error': 'Ungültiges Datumsformat'}), 400
-    
-    # Parse interval
-    try:
-        interval_days = int(request.args.get('interval_days', 7))
-        interval_days = min(max(interval_days, 1), 365)
-    except ValueError:
-        interval_days = 7
-    
-    # Deep-Recon #2: Eintragszahl deckeln, BEVOR die Schleife läuft.
-    n_entries = int((end_date - start_date).days / interval_days) + 1
-    if n_entries > MAX_EPHEMERIS_ENTRIES:
-        return jsonify({
-            'error': 'Zeitraum zu groß',
-            'message': f'{n_entries:,} Einträge übersteigen das Limit von '
-                       f'{MAX_EPHEMERIS_ENTRIES:,}. Zeitraum verkürzen oder '
-                       'interval_days vergrößern.',
-            'max_entries': MAX_EPHEMERIS_ENTRIES
-        }), 400
-
-    # Generate ephemeris
-    ephemeris = []
-    current_date = start_date
-    
-    while current_date <= end_date:
-        entry = {
-            'date': current_date.strftime('%Y-%m-%d'),
-            'julian_date': 2451545.0 + (current_date - datetime(2000, 1, 1, 12, 0, 0)).total_seconds() / 86400,
-            'positions': {}
-        }
-        
-        for body_id in body_ids:
-            if body_id in CELESTIAL_BODIES:
-                body_data = CELESTIAL_BODIES[body_id]
-            elif body_id in TNO_BODIES:
-                body_data = TNO_BODIES[body_id]
-            else:
-                continue
-            
-            pos = _position_for(body_data, current_date)
-            entry['positions'][body_id] = {
-                'x_au': round(pos['x'], 4),
-                'y_au': round(pos['y'], 4),
-                'z_au': round(pos['z'], 4),
-                'r_au': round(pos['r'], 4),
-                'true_anomaly_deg': round(pos['true_anomaly_deg'], 2)
-            }
-        
-        
-        ephemeris.append(entry)
-        current_date += timedelta(days=interval_days)
-    
-    return jsonify({
-        'ephemeris': ephemeris,
-        'bodies': body_ids,
-        'start_date': start_date.strftime('%Y-%m-%d'),
-        'end_date': end_date.strftime('%Y-%m-%d'),
-        'interval_days': interval_days,
-        'entries': len(ephemeris)
-    })
-
-
 @app.errorhandler(404)
 def not_found(error) -> Response:
     """Handle 404 errors with user-friendly message."""
@@ -1023,16 +673,10 @@ def not_found(error) -> Response:
             '/api/bodies/<id>',
             '/api/position/<id>/<timestamp>',
             '/api/orbit/<id>',
-            '/api/simulate',
             '/api/simulate/nbody',
-            '/api/planet9/search',
-            '/api/tno/discoveries',
-            '/api/categories',
-            '/api/time/convert',
-            '/api/ephemeris'
+            '/api/planet9/search'
         ]
     }), 404
-
 
 @app.errorhandler(500)
 def internal_error(error) -> Response:

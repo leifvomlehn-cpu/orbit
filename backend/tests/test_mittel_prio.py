@@ -36,23 +36,6 @@ class TestParseIsoUtcNull:
         with pytest.raises(ValueError):
             parse_iso_utc(12345)
 
-    def test_simulate_null_start_time_returns_400(self, client):
-        r = client.post('/api/simulate', json={
-            'bodies': ['earth'],
-            'start_time': None,
-            'end_time': '2026-02-01T00:00:00',
-            'steps': 10,
-        })
-        assert r.status_code == 400
-
-    def test_simulate_null_end_time_returns_400(self, client):
-        r = client.post('/api/simulate', json={
-            'bodies': ['earth'],
-            'start_time': '2026-01-01T00:00:00',
-            'end_time': None,
-            'steps': 10,
-        })
-        assert r.status_code == 400
 
     def test_nbody_null_start_time_returns_400(self, client):
         r = client.post('/api/simulate/nbody', json={

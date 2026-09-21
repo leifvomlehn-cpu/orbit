@@ -113,34 +113,6 @@ class TestOrbit:
         assert d2['points_count'] == 360
 
 
-class TestSimulate:
-    def test_simulate_basic(self, client):
-        r = client.post('/api/simulate', json={
-            'bodies': ['earth', 'mars'],
-            'start_time': '2026-01-01T00:00:00',
-            'end_time': '2026-04-01T00:00:00',
-            'steps': 10,
-        })
-        assert r.status_code == 200
-        d = r.get_json()
-        assert len(d['simulation']['results']) == 10
-        for step in d['simulation']['results']:
-            assert 'earth' in step['positions'] and 'mars' in step['positions']
-
-    def test_simulate_empty_body_returns_400(self, client):
-        assert client.post('/api/simulate', json={}).status_code == 400
-
-    def test_simulate_with_planet9(self, client):
-        r = client.post('/api/simulate', json={
-            'bodies': ['earth'],
-            'start_time': '2026-01-01T00:00:00',
-            'end_time': '2026-02-01T00:00:00',
-            'steps': 5,
-            'include_planet9': True,
-        })
-        d = r.get_json()
-        assert 'planet9' in d['simulation']['results'][0]['positions']
-
 
 class TestPlanet9Search:
     def test_returns_full_structure(self, client):
@@ -156,45 +128,8 @@ class TestPlanet9Search:
         assert d2['search_zone']['confidence_level'] == 'optimistic'
 
 
-class TestTnoDiscoveries:
-    def test_returns_count(self, client):
-        d = client.get('/api/tno/discoveries').get_json()
-        assert d['count'] > 0
-        assert d['total_tnos'] > 0
-
-    def test_cache_keys_are_query_aware(self, client):
-        # Regression: Default-Key (nur Pfad) ignorierte limit
-        d1 = client.get('/api/tno/discoveries?limit=5').get_json()
-        d2 = client.get('/api/tno/discoveries?limit=10').get_json()
-        assert d1['count'] == 5
-        assert d2['count'] == 10
 
 
-class TestCategoriesEndpoint:
-    def test_returns_categories_and_colors(self, client):
-        d = client.get('/api/categories').get_json()
-        assert 'categories' in d and 'colors' in d
-
-
-class TestTimeConvert:
-    def test_iso_to_jd(self, client):
-        d = client.get('/api/time/convert?iso=2000-01-01T12:00:00').get_json()
-        assert d['julian_date'] == pytest.approx(2451545.0)
-
-    def test_jd_to_iso(self, client):
-        d = client.get('/api/time/convert?jd=2451545.0').get_json()
-        assert d['iso'].startswith('2000-01-01T12:00:00')
-
-    def test_default_returns_now(self, client):
-        d = client.get('/api/time/convert').get_json()
-        assert 'julian_date' in d
-        assert d['input']['current_time'] == 'now'
-
-
-class TestEphemeris:
-    def test_default_ephemeris(self, client):
-        d = client.get('/api/ephemeris').get_json()
-        assert d['entries'] > 0
 
 
 class TestUnknownEndpoint:
@@ -219,28 +154,7 @@ class TestIsoTimestampHandling:
         assert r.status_code == 200
         assert r.get_json()['timestamp'].startswith('2026-04-06T12:00:00')
 
-    def test_time_convert_accepts_z(self, client):
-        d = client.get('/api/time/convert?iso=2000-01-01T12:00:00Z').get_json()
-        assert d['julian_date'] == pytest.approx(2451545.0)
 
-    def test_time_convert_offset_is_converted_to_utc(self, client):
-        # Query-String: '+' muss als %2B kodiert sein (sonst Space)
-        d = client.get('/api/time/convert?iso=2000-01-01T14:00:00%2B02:00').get_json()
-        assert d['julian_date'] == pytest.approx(2451545.0)
-
-    def test_ephemeris_accepts_z_dates(self, client):
-        r = client.get('/api/ephemeris?start_date=2026-01-01T00:00:00Z&end_date=2026-01-15T00:00:00Z')
-        assert r.status_code == 200
-        assert r.get_json()['entries'] > 0
-
-    def test_simulate_accepts_z_timestamps(self, client):
-        r = client.post('/api/simulate', json={
-            'bodies': ['earth'],
-            'start_time': '2026-01-01T00:00:00Z',
-            'end_time': '2026-02-01T00:00:00Z',
-            'steps': 10,
-        })
-        assert r.status_code == 200
 
     def test_nbody_accepts_z_timestamps(self, client):
         r = client.post('/api/simulate/nbody', json={
@@ -315,13 +229,6 @@ class TestJsonBodyErrors:
     """Deep-Recon #3: ungültiges/fehlendes JSON landete über die
     HTTPException von get_json() im generischen 500er statt als 400."""
 
-    def test_simulate_invalid_json_returns_400(self, client):
-        r = client.post('/api/simulate', data='{kaputt', content_type='application/json')
-        assert r.status_code == 400
-
-    def test_simulate_wrong_content_type_returns_400(self, client):
-        r = client.post('/api/simulate', data='bodies=earth', content_type='text/plain')
-        assert r.status_code == 400
 
     def test_nbody_invalid_json_returns_400(self, client):
         r = client.post('/api/simulate/nbody', data='{kaputt', content_type='application/json')
@@ -331,18 +238,6 @@ class TestJsonBodyErrors:
         r = client.post('/api/simulate/nbody', data='x=1', content_type='text/plain')
         assert r.status_code == 400
 
-
-class TestEphemerisLimits:
-    """Deep-Recon #2: unbegrenzter Zeitraum -> ~220k Einträge (OOM/Payload)."""
-
-    def test_huge_range_returns_400(self, client):
-        r = client.get('/api/ephemeris?start_date=1900-01-01&end_date=2500-01-01&interval_days=1')
-        assert r.status_code == 400
-        assert r.get_json()['max_entries'] == 2000
-
-    def test_range_within_limit_passes(self, client):
-        r = client.get('/api/ephemeris?start_date=2026-01-01&end_date=2027-12-31&interval_days=1')
-        assert r.status_code == 200
 
 
 class TestCorsLockedDown:

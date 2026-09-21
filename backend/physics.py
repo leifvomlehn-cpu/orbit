@@ -112,62 +112,24 @@ def solve_kepler(M: float, e: float, tolerance: float = 1e-10) -> float:
     return E
 
 
-def solve_kepler_hyperbolic(M: float, e: float, tolerance: float = 1e-10) -> float:
-    """
-    Solve Kepler's equation for hyperbolic orbits (e > 1).
-    Uses the hyperbolic form: M = e * sinh(H) - H
-    
-    Args:
-        M: Mean anomaly (radians)
-        e: Eccentricity (> 1)
-        tolerance: Convergence tolerance
-        
-    Returns:
-        Hyperbolic anomaly H (radians)
-    """
-    # Initial guess
-    H = math.log(2 * abs(M) / e + 1.8) if M > 0 else -math.log(-2 * M / e + 1.8)
-    
-    max_iterations = 50
-    for _ in range(max_iterations):
-        f = e * math.sinh(H) - H - M
-        f_prime = e * math.cosh(H) - 1
-        
-        delta = f / f_prime
-        H = H - delta
-        
-        if abs(delta) < tolerance:
-            break
-    
-    
-    return H
-
 
 def calculate_true_anomaly(E: float, e: float) -> float:
     """
-    Calculate true anomaly from eccentric anomaly.
-    
-    Args:
-        E: Eccentric anomaly (radians)
-        e: Eccentricity
-        
-    Returns:
-        True anomaly (radians)
+    Calculate true anomaly from eccentric anomaly (elliptisch, e < 1).
+
+    Der fruehere hyperbolische Zweig (sinh/cosh) war tot: solve_kepler
+    lehnt e >= 1 bereits fail-fast ab. Direktaufrufe mit e >= 1 werden
+    hier ebenfalls klar abgelehnt statt still falsch zu rechnen.
     """
-    if e < 1.0:
-        # Elliptical orbit
-        true_anomaly = 2 * math.atan2(
-            math.sqrt(1 + e) * math.sin(E / 2),
-            math.sqrt(1 - e) * math.cos(E / 2)
+    if e >= 1.0:
+        raise ValueError(
+            f'Exzentrizität e={e} >= 1 (parabolisch/hyperbolisch) wird '
+            'derzeit nicht unterstützt — nur geschlossene Bahnen (e < 1).'
         )
-    else:
-        # Hyperbolic orbit
-        true_anomaly = 2 * math.atan2(
-            math.sqrt(e + 1) * math.sinh(E / 2),
-            math.sqrt(e - 1) * math.cosh(E / 2)
-        )
-    
-    return true_anomaly
+    return 2 * math.atan2(
+        math.sqrt(1 + e) * math.sin(E / 2),
+        math.sqrt(1 - e) * math.cos(E / 2)
+    )
 
 
 def calculate_mean_anomaly(elements: Dict[str, float], dt: datetime) -> float:
@@ -253,11 +215,9 @@ def calculate_position(elements: Dict[str, float], dt: datetime) -> Dict[str, fl
     # Calculate true anomaly
     nu = calculate_true_anomaly(E, e)
     
-    # Calculate distance from focus (heliocentric distance)
-    if e < 1.0:
-        r = a * (1 - e * math.cos(E))
-    else:
-        r = a * (e * math.cosh(E) - 1)
+    # Calculate distance from focus (heliocentric distance).
+    # Nur elliptisch: e >= 1 wurde bereits in solve_kepler fail-fast abgelehnt.
+    r = a * (1 - e * math.cos(E))
     
     # Position in orbital plane
     x_orbital = r * math.cos(nu)
@@ -371,26 +331,6 @@ def calculate_orbit_path(elements: Dict[str, float], num_points: int = 360) -> D
         'z': z_list
     }
 
-
-def calculate_all_positions(bodies: Dict[str, Dict], dt: datetime) -> Dict[str, Dict[str, float]]:
-    """
-    Calculate positions for multiple bodies at once.
-    
-    Args:
-        bodies: Dictionary of body data
-        dt: Target datetime
-        
-    Returns:
-        Dictionary mapping body IDs to position dictionaries
-    """
-    positions = {}
-    
-    for body_id, body_data in bodies.items():
-        elements = body_data.get('orbital_elements', {})
-        positions[body_id] = calculate_position(elements, dt)
-    
-    
-    return positions
 
 
 def calculate_planet9_search_zone(confidence: str = 'moderate') -> Dict[str, Any]:
@@ -661,28 +601,6 @@ def calculate_orbital_period(a_au: float) -> float:
     return period_years * DAYS_PER_YEAR
 
 
-def calculate_delta_v(body1_elements: Dict[str, float], body2_elements: Dict[str, float], dt: datetime) -> float:
-    """
-    Calculate approximate delta-V between two bodies.
-    
-    Args:
-        body1_elements: First body's orbital elements
-        body2_elements: Second body's orbital elements
-        dt: Target datetime
-        
-    Returns:
-        Approximate delta-V in km/s
-    """
-    pos1 = calculate_position(body1_elements, dt)
-    pos2 = calculate_position(body2_elements, dt)
-    
-    # Calculate velocities
-    v1 = calculate_orbital_velocity(body1_elements, pos1['r'])
-    v2 = calculate_orbital_velocity(body2_elements, pos2['r'])
-    
-    # Simplified delta-V (ignoring direction)
-    return abs(v1 - v2)
-
 
 def calculate_synodic_period(period1_days: float, period2_days: float) -> float:
     """
@@ -700,67 +618,6 @@ def calculate_synodic_period(period1_days: float, period2_days: float) -> float:
     
     return abs(1 / (1/period1_days - 1/period2_days))
 
-
-def generate_orbital_events(body_id: str, elements: Dict[str, float], start_date: datetime, years: int = 10) -> List[Dict[str, Any]]:
-    """
-    Generate significant orbital events (perihelion, aphelion) for a body.
-    
-    Args:
-        body_id: Body identifier
-        elements: Orbital elements
-        start_date: Start date for predictions
-        years: Number of years to predict
-        
-    Returns:
-        List of orbital events
-    """
-    events = []
-    period_days = elements.get('orbital_period_days', 365.25)
-    
-    if period_days == 0:
-        return events
-    
-    # Calculate approximate perihelion and aphelion dates
-    # This is simplified - real calculations would need more precision
-    
-    # Estimate next perihelion
-    M0 = elements.get('mean_anomaly_deg', 0)
-    
-    # Days until perihelion (M = 0)
-    days_to_perihelion = (360 - M0) / 360 * period_days
-    
-    perihelion_date = start_date + timedelta(days=days_to_perihelion)
-    aphelion_date = perihelion_date + timedelta(days=period_days/2)
-    
-    # Generate events for the specified period
-    end_date = start_date + timedelta(days=years*365)
-    
-    current_perihelion = perihelion_date
-    current_aphelion = aphelion_date
-    
-    while current_perihelion < end_date:
-        events.append({
-            'body_id': body_id,
-            'event_type': 'perihelion',
-            'date': current_perihelion.isoformat(),
-            'description_de': f'{body_id} erreicht den sonnennächsten Punkt'
-        })
-        
-        if current_aphelion < end_date:
-            events.append({
-                'body_id': body_id,
-                'event_type': 'aphelion',
-                'date': current_aphelion.isoformat(),
-                'description_de': f'{body_id} erreicht den sonnenfernsten Punkt'
-            })
-        
-        current_perihelion += timedelta(days=period_days)
-        current_aphelion += timedelta(days=period_days)
-    
-    
-    events.sort(key=lambda x: x['date'])
-    
-    return events
 
 
 if __name__ == '__main__':

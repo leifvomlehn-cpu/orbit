@@ -1002,7 +1002,7 @@ TNO_BODIES: Dict[str, Dict[str, Any]] = {
         }
     },
     
-    '2004_sedna_minor': {
+    '2004_vn112': {
         'name': '2004 VN112',
         'name_de': '2004 VN112',
         'tno_type': 'detached',
@@ -1110,7 +1110,7 @@ TNO_BODIES: Dict[str, Dict[str, Any]] = {
     # =========================================================================
     # CLASSICAL KUIPER BELT OBJECTS (for comparison)
     # =========================================================================
-    'makemake_minor': {
+    '2005_rm43': {
         'name': '2005 RM43',
         'name_de': '2005 RM43',
         'tno_type': 'detached',
@@ -1194,34 +1194,6 @@ PLANET_9_PREDICTION: Dict[str, Any] = {
     'search_status': 'Aktive Suche mit Subaru, CTIO, und Vera C. Rubin Observatory'
 }
 
-# =============================================================================
-# TNO DISCOVERY TIMELINE
-# =============================================================================
-
-TNO_DISCOVERIES: Dict[str, Any] = {
-    'timeline': [
-        {'year': 1992, 'object': '1992 QB1', 'significance': 'Erstes TNO nach Pluto entdeckt'},
-        {'year': 2002, 'object': 'Quaoar', 'significance': 'Großes TNO, fast Zwergplanet-Status'},
-        {'year': 2003, 'object': 'Sedna', 'significance': 'Erstes Sednoid, extrem sonnenfern'},
-        {'year': 2004, 'object': 'Orcus', 'significance': 'Pluto-Antipode entdeckt'},
-        {'year': 2005, 'object': 'Eris', 'significance': 'Führte zur Pluto-Reklassifizierung'},
-        {'year': 2005, 'object': 'Makemake', 'significance': 'Dritter offizieller Zwergplanet'},
-        {'year': 2005, 'object': 'Haumea', 'significance': 'Einzigartige elongierte Form'},
-        {'year': 2007, 'object': 'Gonggong', 'significance': 'Großes rotes TNO'},
-        {'year': 2012, 'object': '2012 VP113', 'significance': 'Zweites Sednoid bestätigt Muster'},
-        {'year': 2013, 'object': '2013 FT28', 'significance': 'Unterstützt Planet-9-Theorie'},
-        {'year': 2014, 'object': '2014 SR349', 'significance': 'Anti-aligned TNO entdeckt'},
-        {'year': 2015, 'object': '2015 KG163', 'significance': 'Extrem aphelisches TNO'},
-        {'year': 2023, 'object': '2023 KQ14', 'significance': 'Neuestes Sednoid "Ammonite"'}
-    ],
-    'statistics': {
-        'total_known_tnos': 3000,
-        'extreme_tnos_count': 20,
-        'sednoids_count': 3,
-        'dwarf_planets_count': 9,
-        'planet9_supporting_objects': 11
-    }
-}
 
 # =============================================================================
 # BODY CATEGORIES AND COLORS
@@ -1270,27 +1242,6 @@ BODY_COLORS: Dict[str, str] = {
 # HELPER FUNCTIONS
 # =============================================================================
 
-def get_body_by_id(body_id: str) -> Dict[str, Any]:
-    """
-    Retrieve a celestial body by its ID.
-    
-    Args:
-        body_id: The unique identifier of the body
-        
-    Returns:
-        Dictionary with body data or empty dict if not found
-    """
-    body_id = body_id.lower().strip()
-    
-    if body_id in CELESTIAL_BODIES:
-        return CELESTIAL_BODIES[body_id]
-    if body_id in TNO_BODIES:
-        return TNO_BODIES[body_id]
-    if body_id == 'planet9':
-        return PLANET_9_PREDICTION
-    
-    return {}
-
 
 def get_all_body_ids() -> List[str]:
     """
@@ -1300,29 +1251,6 @@ def get_all_body_ids() -> List[str]:
         List of body IDs
     """
     return list(CELESTIAL_BODIES.keys()) + list(TNO_BODIES.keys()) + ['planet9']
-
-
-def get_bodies_by_category(category: str) -> List[Dict[str, Any]]:
-    """
-    Get all bodies belonging to a specific category.
-    
-    Args:
-        category: The category to filter by
-        
-    Returns:
-        List of body dictionaries
-    """
-    bodies = []
-    
-    for body_id, body_data in CELESTIAL_BODIES.items():
-        if body_data.get('category') == category:
-            bodies.append({'id': body_id, **body_data})
-    
-    if category == 'tno':
-        for body_id, body_data in TNO_BODIES.items():
-            bodies.append({'id': body_id, 'category': 'tno', **body_data})
-    
-    return bodies
 
 
 if __name__ == '__main__':
