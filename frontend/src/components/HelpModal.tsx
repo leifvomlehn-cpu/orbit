@@ -66,6 +66,25 @@ export default function HelpModal() {
               zu geben.
             </p>
           </section>
+          <section>
+            <h3>🖼️ Bildquellen</h3>
+            <p>
+              Planeten-Texturen: Solar System Scope (
+              <a
+                href="https://www.solarsystemscope.com/textures/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                solarsystemscope.com/textures
+              </a>
+              ), lizenziert unter{' '}
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+                CC BY 4.0
+              </a>
+              . Bahndaten: NASA JPL Horizons / Minor Planet Center; physikalische Werte: NSSDCA
+              Planetary Factsheets.
+            </p>
+          </section>
         </div>
       </div>
     </div>

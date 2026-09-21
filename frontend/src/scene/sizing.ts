@@ -66,3 +66,15 @@ export function screenFloorScale(radiusUnits: number, unitsPerPixel: number): nu
   if (radiusUnits <= 0 || !(unitsPerPixel > 0) || !Number.isFinite(unitsPerPixel)) return 1
   return Math.max(1, (MIN_RADIUS_PX * unitsPerPixel) / radiusUnits)
 }
+
+/**
+ * Ring-Radien (km, aus physical_data.rings) in Scene-Units — derselbe
+ * Faktor wie der Körperradius, damit Ring und Planet proportional
+ * zueinander bleiben. Nur für Körper ohne Kategorie-Floor sinnvoll
+ * (Planeten): bei gefloorten Kleinkörpern läge ein echter Ring sonst
+ * UNTER der sichtbaren Oberfläche.
+ */
+export function ringRadiusUnits(body: CelestialBody, km: number): number {
+  const ex = EXAGGERATION[body.category] ?? EXAGGERATION.tno
+  return (km / KM_PER_AU) * ex
+}

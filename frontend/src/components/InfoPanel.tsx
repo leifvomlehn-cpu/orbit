@@ -11,6 +11,14 @@ function formatPeriod(days: number): string {
   return `${days.toFixed(0)} Tage`
 }
 
+/** Rotationsperiode in h; negativ = retrograd (Welle 2, NSSDCA). */
+function formatRotation(hours: number): string {
+  const abs = Math.abs(hours)
+  const retro = hours < 0 ? ' (rückläufig)' : ''
+  if (abs >= 100) return `${(abs / 24).toFixed(1)} Tage${retro}`
+  return `${abs.toFixed(1)} h${retro}`
+}
+
 /** Detail-Panel rechts: alle Daten stecken schon im bodies-Bootstrap. */
 export default function InfoPanel() {
   const dispatch = useAppDispatch()
@@ -99,6 +107,24 @@ export default function InfoPanel() {
                     <div className="stat-box">
                       <span className="stat-label">Monde</span>
                       <span className="stat-value">{phys.moons}</span>
+                    </div>
+                  )}
+                  {typeof phys.rotation_period_hours === 'number' && (
+                    <div className="stat-box">
+                      <span className="stat-label">Rotation</span>
+                      <span className="stat-value">{formatRotation(phys.rotation_period_hours)}</span>
+                    </div>
+                  )}
+                  {typeof phys.obliquity_deg === 'number' && (
+                    <div className="stat-box">
+                      <span className="stat-label">Achsneigung</span>
+                      <span className="stat-value">{phys.obliquity_deg.toFixed(1)}°</span>
+                    </div>
+                  )}
+                  {typeof phys.albedo_geometric === 'number' && (
+                    <div className="stat-box">
+                      <span className="stat-label">Albedo</span>
+                      <span className="stat-value">{phys.albedo_geometric.toFixed(2)}</span>
                     </div>
                   )}
                 </div>

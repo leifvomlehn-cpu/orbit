@@ -46,8 +46,11 @@ export default function SolarSystemScene() {
             setLowQuality(true)
           }}
         />
-        <ambientLight intensity={0.45} />
-        <pointLight position={[0, 0, 0]} intensity={2.5} decay={0} color="#fff5e0" />
+        {/* Welle 2: physikalisches 1/d² (decay=2 in three r186); intensity=100
+            ist der Startwert — Helligkeitsbalance live am Deploy justieren.
+            Ambient nur noch als Nachtseiten-Grundlicht. */}
+        <ambientLight intensity={0.15} />
+        <pointLight position={[0, 0, 0]} intensity={100} decay={2} color="#fff5e0" />
         <Stars radius={300} depth={100} count={lowQuality ? 1500 : 4000} factor={4} fade speed={0} />
         <SimulationTicker />
         <CameraFocus />

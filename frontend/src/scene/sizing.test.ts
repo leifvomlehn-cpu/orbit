@@ -6,6 +6,7 @@ import {
   EXAGGERATION,
   KM_PER_AU,
   MIN_RADIUS_PX,
+  ringRadiusUnits,
   screenFloorScale,
 } from './sizing'
 
@@ -90,5 +91,22 @@ describe('screenFloorScale', () => {
     expect(screenFloorScale(0, 1)).toBe(1)
     expect(screenFloorScale(0.1, 0)).toBe(1)
     expect(screenFloorScale(-1, -1)).toBe(1)
+  })
+})
+
+describe('ringRadiusUnits (Welle 2)', () => {
+  it('skaliert Ring-Radien mit dem Körperfaktor (Saturn A-Ring außen ≈ 2.35 R)', () => {
+    const saturn = makeBody(58232, 'planet', 9.5)
+    const bodyRadius = baseRadiusUnits(saturn)
+    const aOuter = ringRadiusUnits(saturn, 136780)
+    expect(aOuter / bodyRadius).toBeCloseTo(136780 / 58232, 5)
+  })
+
+  it('bleibt physikalisch skaliert, auch wenn der Körper am Floor hängt', () => {
+    const dwarf = makeBody(1188.3, 'dwarf_planet', 39.5)
+    expect(ringRadiusUnits(dwarf, 2000)).toBeCloseTo(
+      (2000 / KM_PER_AU) * EXAGGERATION.dwarf_planet,
+      10,
+    )
   })
 })
