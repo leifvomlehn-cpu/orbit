@@ -46,11 +46,15 @@ export default function SolarSystemScene() {
             setLowQuality(true)
           }}
         />
-        {/* Welle 2: physikalisches 1/d² (decay=2 in three r186); intensity=100
-            ist der Startwert — Helligkeitsbalance live am Deploy justieren.
-            Ambient nur noch als Nachtseiten-Grundlicht. */}
-        <ambientLight intensity={0.15} />
-        <pointLight position={[0, 0, 0]} intensity={100} decay={2} color="#fff5e0" />
+        {/* Helligkeitsbalance nach Live-Check (Welle 2): decay=1 statt
+            physikalischem 1/d² — bei 1 AU = 1 Scene-Unit ist Merkur:Neptun
+            real 5900:1 (innen ausgebrannt weiß, Neptun-Tagseite dunkler als
+            die Ambient-Nachtseite → keine sonnengewandte Seite erkennbar).
+            decay=1 hält einen lesbaren Verlauf (77:1); intensity so, dass
+            die Erde (d=1) normbelichtet ist. Ambient hält Nachtseiten
+            sichtbar, klar UNTER der Tagseiten-Helligkeit. */}
+        <ambientLight intensity={0.08} />
+        <pointLight position={[0, 0, 0]} intensity={2.5} decay={1} color="#fff5e0" />
         <Stars radius={300} depth={100} count={lowQuality ? 1500 : 4000} factor={4} fade speed={0} />
         <SimulationTicker />
         <CameraFocus />
