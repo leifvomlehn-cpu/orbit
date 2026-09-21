@@ -72,7 +72,7 @@ export default function SolarSystemScene() {
               path={body.orbit_path}
               color={body.color}
               dashed={body.category === 'planet9'}
-              parentId={body.parent_id}
+              parentId={body.parent_id ?? undefined}
               scale={body.parent_id ? MOON_ORBIT_EXAGGERATION : 1}
             />
           ) : null,
