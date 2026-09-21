@@ -14,6 +14,7 @@ import HelpModal from './components/HelpModal'
 import NbodyControls from './components/NbodyControls'
 import DemoPanel from './components/DemoPanel'
 import LoadingScreen from './components/LoadingScreen'
+import DebugOverlay from './components/DebugOverlay'
 
 function Shell() {
   const dispatch = useAppDispatch()
@@ -118,6 +119,7 @@ function Shell() {
       <HelpModal />
       <ErrorBanner />
       <LoadingScreen />
+      <DebugOverlay />
     </div>
   )
 }
