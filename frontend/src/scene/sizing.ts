@@ -63,11 +63,14 @@ export const EXAGGERATION = {
  * Anzeige-Übertreibung der Mond-UMLAUFBAHN (nicht des Radius): der echte
  * Mondabstand (0,00257 AU ≈ 60 Erdradien) läge bei den ×1500 übertriebenen
  * Körperradien auf 4 % des angezeigten Erdradius — der Mond stünde mitten
- * IM Planeten. ×300 (Radien-Übertreibung / 5) stellt ihn auf 12 Anzeige-
- * Erdradien: bei Erde-Fokus sichtbar, in der Systemansicht < 1 px an der
- * Erde. Bahnform (e, i, Knoten) und Umlaufzeit bleiben echt.
+ * IM Planeten. ×75 stellt ihn auf ≈3 Anzeige-Erdradien (0,19 Units): beim
+ * Erde-Fokus sichtbar kreisend, in der Systemansicht ein Punkt an der Erde.
+ * Obergrenze ist die Sonne: ihr Anzeigeradius ist 0,28 Units bei Erdbahn
+ * 1,0 — ×300 (0,77 Units Bahnradius) führte die Mondbahn mitten DURCH die
+ * Sonne und kreuzte das halbe innere System (Live-Befund 21.09.2026).
+ * Bahnform (e, i, Knoten) und Umlaufzeit bleiben echt.
  */
-export const MOON_ORBIT_EXAGGERATION = 300
+export const MOON_ORBIT_EXAGGERATION = 75
 
 /**
  * Kategorie-Untergrenzen in Scene-Units (1 AU = 1 Unit). Zwergplaneten

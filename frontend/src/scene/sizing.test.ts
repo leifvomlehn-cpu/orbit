@@ -166,13 +166,18 @@ describe('Mond (Kategorie moon)', () => {
     expect(moon / earth).toBeCloseTo(1737.4 / 6371.0, 5)
   })
 
-  it('Orbit-Übertreibung: sichtbar beim Erde-Fokus, unauffällig im System', () => {
+  it('Orbit-Übertreibung: sichtbar beim Erde-Fokus, kollidiert nie mit der Sonne', () => {
     expect(MOON_ORBIT_EXAGGERATION).toBeGreaterThan(1)
     expect(MOON_ORBIT_EXAGGERATION).toBeLessThan(EXAGGERATION.planet)
-    // 300 × echter Abstand (0.0025696 AU) ≈ 0.77 Units ≈ 12 Anzeige-Erdradien
     const displayed = 0.0025696 * MOON_ORBIT_EXAGGERATION
     const earthDisplay = baseRadiusUnits(makeBody(6371.0, 'planet', 1))
-    expect(displayed / earthDisplay).toBeGreaterThan(5)
-    expect(displayed / earthDisplay).toBeLessThan(20)
+    // Sichtbar kreisend beim Erde-Fokus: wenige Anzeige-Erdradien (×75 ≈ 3)
+    expect(displayed / earthDisplay).toBeGreaterThan(2)
+    expect(displayed / earthDisplay).toBeLessThan(6)
+    // Harter Regressions-Schutz (Live-Befund 21.09.2026): die Mondbahn darf
+    // die Sonne nie schneiden — sonnennächster Punkt = Erdbahn − Bahnradius
+    // muss klar außerhalb des Sonnen-Anzeigeradius (×60) bleiben.
+    const sunDisplayRadius = (695700 / KM_PER_AU) * EXAGGERATION.star
+    expect(1 - displayed).toBeGreaterThan(sunDisplayRadius * 1.5)
   })
 })
