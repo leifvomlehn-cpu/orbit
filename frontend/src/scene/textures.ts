@@ -14,6 +14,7 @@ const TEXTURE_FILES: Partial<Record<string, string>> = {
   mercury: '2k_mercury.jpg',
   venus: '2k_venus_surface.jpg',
   earth: '2k_earth_daymap.jpg',
+  moon: '2k_moon.jpg',
   mars: '2k_mars.jpg',
   jupiter: '2k_jupiter.jpg',
   saturn: '2k_saturn.jpg',

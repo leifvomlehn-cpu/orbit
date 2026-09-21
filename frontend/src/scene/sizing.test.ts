@@ -8,6 +8,7 @@ import {
   MIN_RADIUS_PX,
   MIN_RADIUS_PX_FLOOR,
   minRadiusPx,
+  MOON_ORBIT_EXAGGERATION,
   ringRadiusUnits,
   screenFloorScale,
 } from './sizing'
@@ -154,5 +155,24 @@ describe('ringRadiusUnits (Welle 2)', () => {
       (2000 / KM_PER_AU) * EXAGGERATION.dwarf_planet,
       10,
     )
+  })
+})
+
+describe('Mond (Kategorie moon)', () => {
+  it('bekommt keinen Kategorie-Floor — echtes Größenverhältnis zur Erde bleibt', () => {
+    const moon = baseRadiusUnits(makeBody(1737.4, 'moon', 1))
+    const earth = baseRadiusUnits(makeBody(6371.0, 'planet', 1))
+    expect(moon).toBeCloseTo((1737.4 / KM_PER_AU) * EXAGGERATION.moon, 10)
+    expect(moon / earth).toBeCloseTo(1737.4 / 6371.0, 5)
+  })
+
+  it('Orbit-Übertreibung: sichtbar beim Erde-Fokus, unauffällig im System', () => {
+    expect(MOON_ORBIT_EXAGGERATION).toBeGreaterThan(1)
+    expect(MOON_ORBIT_EXAGGERATION).toBeLessThan(EXAGGERATION.planet)
+    // 300 × echter Abstand (0.0025696 AU) ≈ 0.77 Units ≈ 12 Anzeige-Erdradien
+    const displayed = 0.0025696 * MOON_ORBIT_EXAGGERATION
+    const earthDisplay = baseRadiusUnits(makeBody(6371.0, 'planet', 1))
+    expect(displayed / earthDisplay).toBeGreaterThan(5)
+    expect(displayed / earthDisplay).toBeLessThan(20)
   })
 })

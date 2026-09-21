@@ -8,6 +8,7 @@ import CameraRig from './CameraRig'
 import CameraFocus from './CameraFocus'
 import SimulationTicker from './SimulationTicker'
 import TrajectoryLines from './TrajectoryLines'
+import { MOON_ORBIT_EXAGGERATION } from './sizing'
 
 /**
  * Die eine three.js-Szene: 2D ist die orthografische Draufsicht,
@@ -71,6 +72,8 @@ export default function SolarSystemScene() {
               path={body.orbit_path}
               color={body.color}
               dashed={body.category === 'planet9'}
+              parentId={body.parent_id}
+              scale={body.parent_id ? MOON_ORBIT_EXAGGERATION : 1}
             />
           ) : null,
         )}

@@ -37,9 +37,16 @@ class TestGetAllBodies:
         assert {b['category'] for b in d['bodies']} == {'tno'}
 
     def test_sorted_by_semi_major_axis(self, client):
+        # Heliozentrische Körper aufsteigend; Monde (parent_id, geozentrische
+        # Achse) stehen direkt hinter ihrem Planeten — ihre Achse ist dabei
+        # bewusst kleiner als die des Vorgängers.
         d = client.get('/api/bodies').get_json()
-        axes = [b['orbital_elements']['semi_major_axis_au'] for b in d['bodies']]
+        helio = [b for b in d['bodies'] if not b.get('parent_id')]
+        axes = [b['orbital_elements']['semi_major_axis_au'] for b in helio]
         assert axes == sorted(axes)
+        for i, b in enumerate(d['bodies']):
+            if b.get('parent_id'):
+                assert d['bodies'][i - 1]['id'] == b['parent_id']
 
     def test_cache_keys_are_query_aware(self, client):
         # Regression: statischer Key 'all_bodies' ignorierte category/planet9 —

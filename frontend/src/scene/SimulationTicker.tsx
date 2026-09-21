@@ -5,9 +5,9 @@ import type { OrthographicCamera, PerspectiveCamera } from 'three'
 import type { Vec3 } from '../types'
 import { useAppState, useSimClock } from '../state/AppContext'
 import { J2000_MS, MS_PER_DAY, precomputeOrbit, solveKeplerPosition } from '../simulation/kepler'
-import { screenFloorScale } from './sizing'
+import { MOON_ORBIT_EXAGGERATION, screenFloorScale } from './sizing'
 import { orbitOpacity, shouldShowLabel } from './visibility'
-import { eachBody, eachOrbit } from './registry'
+import { eachBody, eachOrbit, getBodyEntry } from './registry'
 import { debugSnapshot } from './debugSnapshot'
 
 // Wiederverwendete Instanz — keine Allokationen im Frame-Loop (Welle 1).
@@ -19,6 +19,14 @@ const tmpPos: Vec3 = { x: 0, y: 0, z: 0 }
  * Kepler-Bahnen (kein `new Date`, keine Trigonometrie pro Körper/Frame),
  * setzt Planetarium-Skalierung + Label-Schwelle und fadet Orbit-Linien
  * zoomabhängig. Läuft mit Priorität -2, also vor den drei-Controls (-1).
+ *
+ * Drei Phasen pro Frame:
+ * 1. Heliozentrische (und stationäre) Körper positionieren.
+ * 2. Körper mit Parent (Mond): geozentrischer Kepler-Orbit ×
+ *    MOON_ORBIT_EXAGGERATION, aufgesetzt auf die Parent-Position DIESES
+ *    Frames (deshalb getrennte Schleife — die Reihenfolge der Registry
+ *    ist nicht garantiert).
+ * 3. Skalierung + Label-Schwelle für alle Körper (Positionen stehen dann).
  *
  * delta ist in Sekunden; gedeckelt auf 100 ms, damit ein Tab-Wechsel
  * (keine Frames, dann ein Riesen-delta) keinen Zeitsprung auslöst.
@@ -53,7 +61,10 @@ export default function SimulationTicker() {
     let bodyCount = 0
     let orbitCount = 0
     let labelsVisible = 0
+
+    // Phase 1: heliozentrische Körper
     for (const entry of eachBody()) {
+      if (entry.parentId) continue
       bodyCount += 1
       const group = entry.group
       if (entry.elements.semi_major_axis_au === 0) {
@@ -77,7 +88,28 @@ export default function SimulationTicker() {
           Number.isFinite(group.position.y) &&
           Number.isFinite(group.position.z)
       }
+    }
 
+    // Phase 2: Körper mit Parent (Mond) — Parent-Position steht jetzt fest
+    for (const entry of eachBody()) {
+      if (!entry.parentId) continue
+      const parent = getBodyEntry(entry.parentId)
+      if (!parent) continue
+      bodyCount += 1
+      if (!entry.pre) entry.pre = precomputeOrbit(entry.elements)
+      if (!entry.pre) continue
+      solveKeplerPosition(entry.pre, days, tmpPos)
+      // Ekliptik → Szene wie Phase 1, dann × Übertreibung + Parent-Offset
+      entry.group.position.set(
+        parent.group.position.x + tmpPos.x * MOON_ORBIT_EXAGGERATION,
+        parent.group.position.y + tmpPos.z * MOON_ORBIT_EXAGGERATION,
+        parent.group.position.z - tmpPos.y * MOON_ORBIT_EXAGGERATION,
+      )
+    }
+
+    // Phase 3: Planetarium-Skalierung + Label-Schwelle (alle Körper)
+    for (const entry of eachBody()) {
+      const group = entry.group
       // Perspektivisch hängt unitsPerPixel vom Körperabstand ab
       let upp = systemUpp
       if (!isOrtho) {
@@ -105,6 +137,12 @@ export default function SimulationTicker() {
     for (const orbit of eachOrbit()) {
       orbitCount += 1
       orbit.material.opacity = orbitOpacity(orbit.category, systemUpp)
+      // Parent-Bahn (Mond): die Ellipse ist relativ zum Parent gezeichnet —
+      // ihre Wrapper-Gruppe folgt hier der Parent-Position.
+      if (orbit.parentId && orbit.group) {
+        const parent = getBodyEntry(orbit.parentId)
+        if (parent) orbit.group.position.copy(parent.group.position)
+      }
     }
 
     // Diagnose-Snapshot (Rendering-Bug): flache Zahlen für das DebugOverlay

@@ -251,10 +251,26 @@ body {
 #app.ui-idle #sidebar,
 #app.ui-idle .view-controls,
 #app.ui-idle .scale-indicator,
-#app.ui-idle #time-controls {
+#app.ui-idle #time-controls,
+#app.ui-idle #info-panel,
+#app.ui-idle #planet9-panel,
+#app.ui-idle .nbody-controls,
+#app.ui-idle .drift-display,
+#app.ui-idle .demo-panel,
+#app.ui-idle .demo-status {
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
+}
+
+/* Auto-Hide (3 s Inaktivität): ALLE Steuer-UI fadet weg, nur die Szene mit
+   den Körpern bleibt. Ausgenommen bewusst: Modals (Hilfe), Error-Banner,
+   Loading-Screen — keine Menüs, dürfen nie still verschwinden.
+   #info-panel/#planet9-panel tragen ihre opacity/visibility-Transition in
+   ihrer eigenen Regel (Kaskade: eine Sammelregel hier würde von deren
+   späterer transition-Deklaration überschrieben). */
+.nbody-controls, .drift-display, .demo-panel, .demo-status {
+    transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
 /* ==========================================================================
@@ -741,7 +757,7 @@ body {
     background: var(--bg-panel);
     border-left: 1px solid var(--border-color);
     transform: translateX(100%);
-    transition: transform var(--transition-normal);
+    transition: opacity 0.5s ease, visibility 0.5s ease, transform var(--transition-normal);
     z-index: 50;
     overflow: hidden;
     display: flex;
@@ -907,7 +923,7 @@ body {
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     transform: translateX(100%);
-    transition: transform var(--transition-normal);
+    transition: opacity 0.5s ease, visibility 0.5s ease, transform var(--transition-normal);
 }
 
 #planet9-panel.hidden {

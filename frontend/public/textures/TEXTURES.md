@@ -7,4 +7,4 @@ Die Dateien hier lädt `frontend/scripts/fetch_textures.sh` von dort und
 checkt sie ins Repo ein. `*_fictional.jpg` sind künstlerische Darstellungen
 (Ceres/Haumea/Makemake/Eris); die übrigen Karten basieren auf
 NASA-Bilddaten. Pluto und die TNOs haben keine freie Textur und bleiben
-bewusst flat-farbig.
+bewusst flat-farbig. Der Mond nutzt `2k_moon.jpg` (NASA-Bilddaten).

@@ -151,7 +151,43 @@ CELESTIAL_BODIES: Dict[str, Dict[str, Any]] = {
         'description_de': 'Die Erde ist unser Heimatplanet - der einzige bekannte Planet mit Leben! Sie hat flüssiges Wasser an der Oberfläche und eine Atmosphäre, die uns schützt.',
         'fun_fact_de': 'Die Erde ist nicht perfekt rund - sie ist an den Polen etwas abgeplattet!'
     },
-    
+
+    'moon': {
+        'name': 'Moon',
+        'name_de': 'Mond',
+        'category': 'moon',
+        # Geozentrisch! Bahnelemente relativ zur Erde (J2000, mittlere Werte,
+        # NSSDCA Moon Fact Sheet). Knoten (Ω) und Perigäum (ω) präzedieren
+        # real schnell (18,6 bzw. 8,85 Jahre) — hier mittlere J2000-Werte,
+        # für die Visualisierung ausreichend.
+        'parent_id': 'earth',
+        'color': '#C0C0C0',
+        'orbital_elements': {
+            'semi_major_axis_au': 0.0025696,   # 384.400 km
+            'eccentricity': 0.0549,
+            'inclination_deg': 5.145,          # gegen die Ekliptik
+            'longitude_ascending_node_deg': 125.08,
+            'argument_perihelion_deg': 318.15,
+            'mean_anomaly_deg': 115.3654,
+            'orbital_period_days': 27.321661,  # siderischer Monat
+            'perihelion_au': 0.0024285,        # Perigäum ≈ 363.300 km
+            'aphelion_au': 0.0027107,          # Apogäum ≈ 405.500 km
+            'mean_motion_deg_day': 13.17636
+        },
+        'physical_data': {
+            'mass_kg': 7.342e22,
+            'radius_km': 1737.4,
+            'surface_gravity_m_s2': 1.62,
+            'escape_velocity_km_s': 2.38,
+            'moons': 0,
+            'rotation_period_hours': 655.728,  # gebundene Rotation = Umlaufzeit
+            'obliquity_deg': 6.687,
+            'albedo_geometric': 0.12
+        },
+        'description_de': 'Der Mond ist der einzige natürliche Begleiter der Erde. Er umkreist uns in etwa 384.400 km Entfernung in 27,3 Tagen - und zeigt uns dabei immer dieselbe Seite, weil er genauso schnell rotiert, wie er um die Erde läuft.',
+        'fun_fact_de': 'Der Mond entfernt sich jedes Jahr etwa 3,8 cm von der Erde - gemessen mit Laserspiegeln, die die Apollo-Astronauten dort aufgestellt haben!'
+    },
+
     'mars': {
         'name': 'Mars',
         'name_de': 'Mars',
@@ -1199,7 +1235,8 @@ BODY_CATEGORIES: Dict[str, Dict[str, str]] = {
     'sednoid': {'name': 'Sednoid', 'description_de': 'Extrem sonnenferne Objekte mit exzentrischen Bahnen'},
     'extreme_tno': {'name': 'Extreme TNO', 'description_de': 'TNOs mit sehr großen Bahnen (a > 150 AU)'},
     'detached': {'name': 'Gelöstes Objekt', 'description_de': 'Objekte ohne Neptun-Wechselwirkung'},
-    'scattered': {'name': 'Gestreutes Objekt', 'description_de': 'Durch Neptun gestreute Objekte'}
+    'scattered': {'name': 'Gestreutes Objekt', 'description_de': 'Durch Neptun gestreute Objekte'},
+    'moon': {'name': 'Mond', 'description_de': 'Natürliche Satelliten — aktuell nur der Erdmond'}
 }
 
 BODY_COLORS: Dict[str, str] = {
@@ -1207,6 +1244,7 @@ BODY_COLORS: Dict[str, str] = {
     'mercury': '#B5B5B5',
     'venus': '#E6C87A',
     'earth': '#6B93D6',
+    'moon': '#C0C0C0',
     'mars': '#C1440E',
     'jupiter': '#D8CA9D',
     'saturn': '#EAD6B8',

@@ -16,6 +16,7 @@ export const LABEL_MIN_PX: Record<string, number> = {
   dwarf_planet: 6,
   tno: 10,
   planet9: 3,
+  moon: 4,
 }
 const LABEL_MIN_PX_DEFAULT = 8
 
@@ -34,14 +35,18 @@ export function shouldShowLabel(
  * unitsPerPixel-Schwellen für den Fade je Kategorie: bis FULL volle
  * Opazität, ab MIN die Restopazität (ORBIT_MIN_OPACITY_FACTOR), dazwischen
  * Smoothstep. Kategorien ohne Eintrag (planet, planet9) faden nie.
+ * Die Mondbahn fadet wie TNO-Bahnen: in der Gesamtansicht ist sie ohnehin
+ * kleiner als ein Pixel und würde nur als Fleck an der Erde kleben.
  */
 export const ORBIT_FADE_FULL: Record<string, number> = {
   dwarf_planet: 0.3,
   tno: 0.08,
+  moon: 0.08,
 }
 export const ORBIT_FADE_MIN: Record<string, number> = {
   dwarf_planet: 1.5,
   tno: 0.4,
+  moon: 0.4,
 }
 export const ORBIT_MIN_OPACITY_FACTOR = 0.12
 

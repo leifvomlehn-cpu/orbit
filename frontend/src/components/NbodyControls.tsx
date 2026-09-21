@@ -25,6 +25,10 @@ export default function NbodyControls() {
     // überschreiben — cleanup setzt cancelled, Guards droppen die Response.
     let cancelled = false
     const bodyId = selectedBodyId
+    // Der Mond kreist um die Erde, nicht um die Sonne: ein heliozentrischer
+    // N-Body-Vergleich ist für ihn physikalisch sinnlos — kein Fetch.
+    const selectedBody = bodies.find((b) => b.id === bodyId)
+    if (selectedBody?.category === 'moon') return
     const years = nbody.years
     const key = nbodyCacheKey(bodyId, years)
 
@@ -97,7 +101,7 @@ export default function NbodyControls() {
     }
   }
 
-  const showDrift = nbody.active && nbody.bodyId !== null
+  const showDrift = nbody.active && nbody.bodyId !== null && body?.category !== 'moon'
 
   return (
     <>

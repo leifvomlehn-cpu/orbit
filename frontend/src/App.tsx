@@ -85,22 +85,28 @@ function Shell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [clock, dispatch])
 
-  // UI-Auto-Hide nach 5 Sekunden Inaktivität (iPad-Vollbild)
+  // UI-Auto-Hide nach 3 Sekunden Inaktivität: alle Steuer-Elemente
+  // (Header, Sidebar, Controls, Panels) blenden aus, nur die Szene mit
+  // Körpern bleibt. Jede Interaktion — auch Scrollen/Zoomen per Rad —
+  // blendet die UI wieder ein. Modals (Hilfe), Fehler- und Ladeanzeige
+  // sind bewusst ausgenommen (kein Menü, darf nie still verschwinden).
   useEffect(() => {
     let timer = 0
     const arm = () => {
       setUiIdle(false)
       window.clearTimeout(timer)
-      timer = window.setTimeout(() => setUiIdle(true), 5000)
+      timer = window.setTimeout(() => setUiIdle(true), 3000)
     }
     window.addEventListener('pointermove', arm)
     window.addEventListener('pointerdown', arm)
+    window.addEventListener('wheel', arm, { passive: true })
     window.addEventListener('keydown', arm)
     arm()
     return () => {
       window.clearTimeout(timer)
       window.removeEventListener('pointermove', arm)
       window.removeEventListener('pointerdown', arm)
+      window.removeEventListener('wheel', arm)
       window.removeEventListener('keydown', arm)
     }
   }, [])

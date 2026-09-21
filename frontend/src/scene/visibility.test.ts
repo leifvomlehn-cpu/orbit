@@ -73,3 +73,18 @@ describe('orbitOpacity', () => {
     )
   })
 })
+
+describe('Mond-Regeln', () => {
+  it('Mond-Label ab der Kategorie-Schwelle, darunter nicht', () => {
+    expect(shouldShowLabel('moon', LABEL_MIN_PX.moon - 0.1, false)).toBe(false)
+    expect(shouldShowLabel('moon', LABEL_MIN_PX.moon, false)).toBe(true)
+  })
+
+  it('Mondbahn fadet beim Rauszoomen (in der Gesamtansicht ohnehin < 1 px)', () => {
+    expect(orbitOpacity('moon', ORBIT_FADE_FULL.moon)).toBe(0.45)
+    expect(orbitOpacity('moon', ORBIT_FADE_MIN.moon)).toBeCloseTo(
+      0.45 * ORBIT_MIN_OPACITY_FACTOR,
+      10,
+    )
+  })
+})

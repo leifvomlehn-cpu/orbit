@@ -71,7 +71,7 @@ export interface Vec3 {
   z: number
 }
 
-export type BodyCategory = 'planet' | 'dwarf_planet' | 'tno' | 'planet9'
+export type BodyCategory = 'planet' | 'dwarf_planet' | 'tno' | 'planet9' | 'moon'
 
 /** Ein Himmelskörper aus GET /api/bodies */
 export interface CelestialBody {
@@ -92,7 +92,10 @@ export interface CelestialBody {
   /** TNO-Untertyp (seit dem Sprint-B-API-Patch mitgeliefert; Werte laut
    *  orbital_data.py — der Extreme-Filter nutzt sednoid/extreme_tno) */
   tno_type?: 'sednoid' | 'extreme_tno' | 'detached' | 'scattered'
-  /** nur wenn include_orbits=true */
+  /** Körper mit Parent (Mond): orbital_elements sind RELATIV zum Parent
+   *  (geozentrisch, J2000), nicht heliozentrisch. */
+  parent_id?: string | null
+  /** nur wenn include_orbits=true; bei parent_id relativ zum Parent */
   orbit_path?: OrbitPath
 }
 

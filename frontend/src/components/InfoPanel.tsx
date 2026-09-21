@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppState } from '../state/AppContext'
 import { useSimDate } from '../hooks/useSimDate'
 import { calculateBodyPosition } from '../simulation/kepler'
+import { KM_PER_AU, MOON_ORBIT_EXAGGERATION } from '../scene/sizing'
 
 function formatMass(kg: number): string {
   return `${kg.toExponential(2)} kg`
@@ -28,6 +29,11 @@ export default function InfoPanel() {
   const body = bodies.find((b) => b.id === selectedBodyId) ?? null
   const el = body?.orbital_elements
   const phys = body?.physical_data
+  const parent = body?.parent_id
+    ? (bodies.find((b) => b.id === body.parent_id) ?? null)
+    : null
+  // Bei Parent-Körpern (Mond) ist r die echte Entfernung zum Parent (AU),
+  // sonst die heliozentrische Distanz.
   const currentR =
     body && el && el.semi_major_axis_au > 0
       ? (calculateBodyPosition(el, simDate)?.r ?? null)
@@ -63,11 +69,15 @@ export default function InfoPanel() {
 
             {el && (
             <div className="info-section">
-              <h3>📐 Bahn</h3>
+              <h3>📐 Bahn{parent ? ` (um ${parent.name_de})` : ''}</h3>
               <div className="info-stats">
                 <div className="stat-box">
                   <span className="stat-label">Große Halbachse</span>
-                  <span className="stat-value">{el.semi_major_axis_au.toFixed(2)} AU</span>
+                  <span className="stat-value">
+                    {parent
+                      ? `${Math.round(el.semi_major_axis_au * KM_PER_AU).toLocaleString('de-DE')} km`
+                      : `${el.semi_major_axis_au.toFixed(2)} AU`}
+                  </span>
                 </div>
                 <div className="stat-box">
                   <span className="stat-label">Exzentrizität</span>
@@ -83,11 +93,24 @@ export default function InfoPanel() {
                 </div>
                 {currentR !== null && (
                   <div className="stat-box">
-                    <span className="stat-label">Aktuelle Entfernung</span>
-                    <span className="stat-value">{currentR.toFixed(2)} AU</span>
+                    <span className="stat-label">
+                      {parent ? `Entfernung zur ${parent.name_de}` : 'Aktuelle Entfernung'}
+                    </span>
+                    <span className="stat-value">
+                      {parent
+                        ? `${Math.round(currentR * KM_PER_AU).toLocaleString('de-DE')} km`
+                        : `${currentR.toFixed(2)} AU`}
+                    </span>
                   </div>
                 )}
               </div>
+              {parent && (
+                <p className="info-note">
+                  Hinweis: Der Abstand ist in der Ansicht ×{MOON_ORBIT_EXAGGERATION} vergrößert
+                  dargestellt — echt läge der Mond bei den übertriebenen Planetengrößen
+                  unsichtbar im Inneren der Erde. Bahnform und Umlaufzeit sind echt.
+                </p>
+              )}
             </div>
             )}
 

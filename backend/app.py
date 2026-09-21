@@ -167,6 +167,25 @@ def health_check() -> Response:
     })
 
 
+def _position_for(body_data: Dict[str, Any], dt: datetime) -> Dict[str, float]:
+    """Heliozentrische Position eines Körpers.
+
+    Körper mit parent_id (Mond) haben geozentrische Bahnelemente — ihr
+    Relativorbit wird auf die heliozentrische Parent-Position aufgesetzt,
+    damit ALLE API-Positionen im selben (heliozentrischen) Bezugssystem
+    rausgehen.
+    """
+    pos = calculate_position(body_data['orbital_elements'], dt)
+    parent_id = body_data.get('parent_id')
+    if parent_id and parent_id in CELESTIAL_BODIES:
+        parent_pos = calculate_position(CELESTIAL_BODIES[parent_id]['orbital_elements'], dt)
+        pos['x'] += parent_pos['x']
+        pos['y'] += parent_pos['y']
+        pos['z'] += parent_pos['z']
+        pos['r'] = math.sqrt(pos['x'] ** 2 + pos['y'] ** 2 + pos['z'] ** 2)
+    return pos
+
+
 @app.route('/api/bodies', methods=['GET'])
 @handle_errors
 @cache.cached(timeout=300, key_prefix=lambda: (
@@ -210,11 +229,17 @@ def get_all_bodies() -> Response:
                 'description_de': body_data['description_de'],
                 'fun_fact_de': body_data.get('fun_fact_de', '')
             }
-            
+
+            # Körper mit Parent (Mond): geozentrische Elemente kennzeichnen —
+            # orbit_path bleibt bewusst RELATIV zum Parent (Frontend hängt
+            # die Linie an die Parent-Position).
+            if body_data.get('parent_id'):
+                body_entry['parent_id'] = body_data['parent_id']
+
             if include_orbits:
                 body_entry['orbit_path'] = calculate_orbit_path(body_data['orbital_elements'])
-            
-            
+
+
             bodies.append(body_entry)
     
     
@@ -262,8 +287,14 @@ def get_all_bodies() -> Response:
             p9_entry['orbit_path'] = calculate_orbit_path(PLANET_9_PREDICTION['orbital_elements'])
         bodies.append(p9_entry)
     
-    # Sort by distance from sun (semi-major axis)
-    bodies.sort(key=lambda x: x['orbital_elements']['semi_major_axis_au'])
+    # Sort by distance from sun (semi-major axis); Monde stehen direkt
+    # hinter ihrem Planeten statt bei ihrer winzigen geozentrischen Achse.
+    def _sort_key(entry: Dict[str, Any]) -> float:
+        parent = entry.get('parent_id')
+        if parent and parent in CELESTIAL_BODIES:
+            return CELESTIAL_BODIES[parent]['orbital_elements']['semi_major_axis_au'] + 0.0001
+        return entry['orbital_elements']['semi_major_axis_au']
+    bodies.sort(key=_sort_key)
     
     return jsonify({
         'bodies': bodies,
@@ -307,9 +338,9 @@ def get_body(body_id: str) -> Response:
                 'available_ids': list(CELESTIAL_BODIES.keys())[:10] + list(TNO_BODIES.keys())[:5]
             }), 404
     
-    # Calculate current position
+    # Calculate current position (heliozentrisch; Mond: Erde + geozentrisch)
     current_time = _now_utc()
-    position = calculate_position(body_data['orbital_elements'], current_time)
+    position = _position_for(body_data, current_time)
     
     # Calculate orbital path
     orbit_path = calculate_orbit_path(body_data['orbital_elements'])
@@ -320,6 +351,7 @@ def get_body(body_id: str) -> Response:
         'name_de': body_data['name_de'],
         'category': body_data.get('category', 'tno'),
         'color': body_data['color'],
+        'parent_id': body_data.get('parent_id'),
         'orbital_elements': body_data['orbital_elements'],
         'physical_data': body_data['physical_data'],
         'current_position': position,
@@ -373,8 +405,8 @@ def get_position(body_id: str, timestamp: str) -> Response:
             'message': f'Kein Himmelskörper mit ID "{body_id}" gefunden.'
         }), 404
     
-    # Calculate position
-    position = calculate_position(body_data['orbital_elements'], dt)
+    # Calculate position (heliozentrisch; Mond: Erde + geozentrisch)
+    position = _position_for(body_data, dt)
     
     # Format output
     output_format = request.args.get('format', 'xyz')
@@ -528,7 +560,7 @@ def run_simulation() -> Response:
             else:
                 continue
             
-            position = calculate_position(body_data['orbital_elements'], current_time)
+            position = _position_for(body_data, current_time)
             step_data['positions'][body_id] = position
         
         
@@ -646,6 +678,12 @@ def run_nbody_simulation() -> Response:
     bodies_data = []
     for bid in body_ids:
         if bid in CELESTIAL_BODIES:
+            if CELESTIAL_BODIES[bid].get('parent_id'):
+                return jsonify({
+                    'error': 'Mond im N-Body nicht unterstützt',
+                    'message': f'"{bid}" umkreist einen Planeten (geozentrisch) und kann '
+                               'nicht heliozentrisch im N-Body-Verfahren gerechnet werden.'
+                }), 400
             bodies_data.append({'id': bid, **CELESTIAL_BODIES[bid]})
         elif bid in TNO_BODIES:
             bodies_data.append({'id': bid, **TNO_BODIES[bid]})
@@ -950,7 +988,7 @@ def get_ephemeris() -> Response:
             else:
                 continue
             
-            pos = calculate_position(body_data['orbital_elements'], current_date)
+            pos = _position_for(body_data, current_date)
             entry['positions'][body_id] = {
                 'x_au': round(pos['x'], 4),
                 'y_au': round(pos['y'], 4),

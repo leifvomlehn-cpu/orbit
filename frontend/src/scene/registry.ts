@@ -24,11 +24,19 @@ export interface BodyEntry {
   labelVisible: boolean
   /** Lazy-Cache, wird vom Loop-Owner beim ersten Frame gefüllt */
   pre: PrecomputedOrbit | null
+  /** Körper mit Parent (Mond): elements sind relativ zum Parent; der
+   *  Loop-Owner setzt die Position auf Parent-Position + Relativorbit. */
+  parentId: string | null
 }
 
 export interface OrbitEntry {
   category: string
   material: LineMaterial
+  /** Bahn relativ zu einem Parent (Mond): der Loop-Owner hängt die
+   *  Wrapper-Gruppe pro Frame an die Parent-Position. */
+  parentId: string | null
+  /** Wrapper-Gruppe der Linie (nur bei Parent-Bahnen gesetzt) */
+  group: Group | null
 }
 
 const bodies = new Map<string, BodyEntry>()

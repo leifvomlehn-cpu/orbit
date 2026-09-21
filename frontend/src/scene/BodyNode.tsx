@@ -98,6 +98,7 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
       labelDiv: labelDivRef.current,
       labelVisible: true,
       pre: null,
+      parentId: body.parent_id ?? null,
     })
     return () => unregisterBody(body.id)
   }, [body, radius])

@@ -56,18 +56,32 @@ export const EXAGGERATION = {
   dwarf_planet: 1500,
   tno: 1500,
   planet9: 1500,
+  moon: 1500,
 } as const
+
+/**
+ * Anzeige-Übertreibung der Mond-UMLAUFBAHN (nicht des Radius): der echte
+ * Mondabstand (0,00257 AU ≈ 60 Erdradien) läge bei den ×1500 übertriebenen
+ * Körperradien auf 4 % des angezeigten Erdradius — der Mond stünde mitten
+ * IM Planeten. ×300 (Radien-Übertreibung / 5) stellt ihn auf 12 Anzeige-
+ * Erdradien: bei Erde-Fokus sichtbar, in der Systemansicht < 1 px an der
+ * Erde. Bahnform (e, i, Knoten) und Umlaufzeit bleiben echt.
+ */
+export const MOON_ORBIT_EXAGGERATION = 300
 
 /**
  * Kategorie-Untergrenzen in Scene-Units (1 AU = 1 Unit). Zwergplaneten
  * und TNOs lägen sonst auch bei moderatem Zoom unter der Wahrnehmung —
  * sie bekommen einen Floor, bleiben aber kleiner als Planeten.
+ * Der Mond bekommt bewusst KEINEN Floor: sein Größenverhältnis zur Erde
+ * (0,27) bleibt so in jedem Zoom echt.
  */
 export const CATEGORY_FLOOR = {
   planet: 0,
   dwarf_planet: 0.03,
   tno: 0.022,
   planet9: 0,
+  moon: 0,
 } as const
 
 /** Sonne & stationäre Objekte haben a = 0 (orbital_data.py). */
