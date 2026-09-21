@@ -9,7 +9,7 @@ fail=0
 total=0
 for f in $REQUIRED; do
   if curl -fsSL "$BASE/$f" -o "$DEST/$f"; then
-    size=$(stat -f%z "$DEST/$f")
+    size=$(wc -c < "$DEST/$f" | tr -d ' ')
     total=$((total + size))
     printf 'OK     %s (%s Bytes)\n' "$f" "$size"
   else
@@ -19,7 +19,7 @@ for f in $REQUIRED; do
 done
 for f in $OPTIONAL; do
   if curl -fsSL "$BASE/$f" -o "$DEST/$f"; then
-    size=$(stat -f%z "$DEST/$f")
+    size=$(wc -c < "$DEST/$f" | tr -d ' ')
     total=$((total + size))
     printf 'OK     %s (optional, %s Bytes)\n' "$f" "$size"
   else

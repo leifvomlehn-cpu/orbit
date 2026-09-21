@@ -145,7 +145,8 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
             lowQuality
               ? undefined
               : (hidden) => {
-                  occludedRef.current = hidden
+                  // drei v9: boolean, v10: boolean | null — robust gegen beide
+                  occludedRef.current = hidden === true
                 }
           }
         >

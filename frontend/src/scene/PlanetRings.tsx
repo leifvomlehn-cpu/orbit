@@ -34,9 +34,8 @@ function remapRadialUVs(geometry: RingGeometry, inner: number, outer: number): v
  *  den Backend-Daten); D/G/E sind praktisch unsichtbar und fehlen bewusst. */
 function SaturnRings({ body, rings }: { body: CelestialBody; rings: RingData[] }) {
   const texture = useBodyTexture(SATURN_RING_TEXTURE_FILE)
-  const main = rings.filter((r) => r.name === 'C' || r.name === 'B' || r.name === 'A')
-  const innerKm = Math.min(...main.map((r) => r.inner_radius_km))
-  const outerKm = Math.max(...main.map((r) => r.outer_radius_km))
+  const innerKm = Math.min(...rings.map((r) => r.inner_radius_km))
+  const outerKm = Math.max(...rings.map((r) => r.outer_radius_km))
   const inner = ringRadiusUnits(body, innerKm)
   const outer = ringRadiusUnits(body, outerKm)
   const geometry = useMemo(() => {
@@ -67,7 +66,12 @@ function SaturnRings({ body, rings }: { body: CelestialBody; rings: RingData[] }
 export default function PlanetRings({ body }: { body: CelestialBody }) {
   const rings = body.physical_data.rings
   if (!rings || rings.length === 0) return null
-  if (body.id === 'saturn') return <SaturnRings body={body} rings={rings} />
+  if (body.id === 'saturn') {
+    const main = rings.filter((r) => r.name === 'C' || r.name === 'B' || r.name === 'A')
+    // Datenvertrag-Bruch: lieber kein Ring als eine NaN-Geometrie
+    if (main.length < 3) return null
+    return <SaturnRings body={body} rings={main} />
+  }
   const visible = rings.filter(
     (r) => r.optical_depth == null || r.optical_depth >= MIN_OPTICAL_DEPTH,
   )
