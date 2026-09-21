@@ -99,7 +99,10 @@ export default function TimeControls() {
           onPointerDown={() => setScrubDraft(simMs)}
           onChange={(e) => {
             const v = Number(e.target.value)
-            setScrubDraft(v)
+            // Draft nur während eines Pointer-Drags pinnen — bei Tastatur-
+            // Scrubbing (kein pointerdown) folgt der Slider direkt simMs,
+            // sonst bliebe er nach dem Loslassen stehen (Abnahme-Warnung).
+            setScrubDraft((prev) => (prev === null ? null : v))
             clock.setSimMs(v)
           }}
           onPointerUp={() => setScrubDraft(null)}
