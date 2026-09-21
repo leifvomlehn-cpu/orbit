@@ -16,7 +16,8 @@ export interface BodyEntry {
   group: Group
   scaleGroup: Group
   labelAnchor: Group
-  labelDiv: HTMLDivElement
+  /** drei-Html-Portal: die Div kann per Callback-Ref erst NACH der Registrierung ankommen */
+  labelDiv: HTMLDivElement | null
   /** letzter Label-Sichtbarkeitszustand — DOM-Schreibzugriff nur bei Wechsel */
   labelVisible: boolean
   /** Lazy-Cache, wird vom Loop-Owner beim ersten Frame gefüllt */

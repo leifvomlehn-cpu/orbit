@@ -97,7 +97,8 @@ export default function SimulationTicker() {
       if (show) labelsVisible += 1
       if (show !== entry.labelVisible) {
         entry.labelVisible = show
-        entry.labelDiv.style.display = show ? '' : 'none'
+        // labelDiv kann per Callback-Ref noch nicht angekommen sein (Html-Portal)
+        if (entry.labelDiv) entry.labelDiv.style.display = show ? '' : 'none'
       }
     }
 

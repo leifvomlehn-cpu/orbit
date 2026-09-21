@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { AdditiveBlending, BackSide, MathUtils, ShaderMaterial } from 'three'
 import type { Group } from 'three'
 import type { CelestialBody } from '../types'
 import { useAppDispatch, useAppState } from '../state/AppContext'
 import { baseRadiusUnits, isStationary } from './sizing'
-import { registerBody, unregisterBody } from './registry'
+import { getBodyEntry, registerBody, unregisterBody } from './registry'
 import PlanetRings from './PlanetRings'
 import { bodyTextureFile, useBodyTexture } from './textures'
 
@@ -64,12 +64,28 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
   const texture = useBodyTexture(bodyTextureFile(body.id))
   const obliquity = body.physical_data.obliquity_deg
 
+  // Callback-Ref für die Label-Div: drei-<Html> portalt sie in einen eigenen
+  // DOM-Zweig — wann sie ankommt, ist nicht garantiert. Die Registrierung darf
+  // davon nicht abhängen (sonst: Körper nie in der Registry, alle Meshes im
+  // Ursprung gestapelt). Kommt die Div später, patcht dieser Ref sie in den
+  // Registry-Eintrag nach und stellt den Sichtbarkeitszustand wieder her.
+  const setLabelDivRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      labelDivRef.current = el
+      const entry = getBodyEntry(body.id)
+      if (entry) {
+        entry.labelDiv = el
+        if (el) el.style.display = entry.labelVisible ? '' : 'none'
+      }
+    },
+    [body.id],
+  )
+
   useEffect(() => {
     const group = groupRef.current
     const scaleGroup = scaleRef.current
     const labelAnchor = labelAnchorRef.current
-    const labelDiv = labelDivRef.current
-    if (!group || !scaleGroup || !labelAnchor || !labelDiv) return
+    if (!group || !scaleGroup || !labelAnchor) return
     registerBody({
       id: body.id,
       elements: body.orbital_elements,
@@ -78,7 +94,7 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
       group,
       scaleGroup,
       labelAnchor,
-      labelDiv,
+      labelDiv: labelDivRef.current,
       labelVisible: true,
       pre: null,
     })
@@ -151,7 +167,7 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
           }
         >
           <div
-            ref={labelDivRef}
+            ref={setLabelDivRef}
             className={selected ? 'body-label selected' : 'body-label'}
             onClick={() => {
               if (!occludedRef.current) dispatch({ type: 'body/select', id: body.id })
