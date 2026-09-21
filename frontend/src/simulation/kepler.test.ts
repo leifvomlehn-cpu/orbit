@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { calculateBodyPosition } from './kepler'
-import type { OrbitalElements } from '../types'
+import {
+  J2000_MS,
+  MS_PER_DAY,
+  calculateBodyPosition,
+  precomputeOrbit,
+  solveKeplerPosition,
+} from './kepler'
+import type { OrbitalElements, Vec3 } from '../types'
 
 // J2000-Elemente der Erde (orbital_data.py)
 const EARTH: OrbitalElements = {
@@ -59,5 +65,73 @@ describe('calculateBodyPosition (Kepler, J2000-Epoche)', () => {
     expect(pos).not.toBeNull()
     expect(pos!.r).toBeGreaterThan(70) // nahe Perihel (~76 AU)
     expect(pos!.r).toBeLessThan(1000)
+  })
+})
+
+// Golden-Werte: erzeugt aus backend/physics.py calculate_position
+// (Generator: _kladde/gen_orbit_goldens.py). Parität Frontend ↔ Backend
+// ist Pflicht — die Drift-Anzeige vergleicht beide Pfade.
+interface GoldenCase {
+  iso: string
+  x: number
+  y: number
+  z: number
+}
+
+const EARTH_CASES: GoldenCase[] = [
+  { iso: '2000-01-01T12:00:00Z', x: -0.9733918871584891, y: -0.2431505834887428, z: 0 },
+  { iso: '2026-09-21T12:00:00Z', x: -0.0292745561219705, y: 0.9828641270302587, z: 0 },
+  { iso: '2031-06-15T12:00:00Z', x: 0.9946758413597057, y: -0.12310587966865175, z: 0 },
+]
+
+const SEDNA_CASES: GoldenCase[] = [
+  { iso: '2000-01-01T12:00:00Z', x: 51.202317414672876, y: 67.60547388730417, z: -17.912615432797697 },
+  { iso: '2026-09-21T12:00:00Z', x: 26.9994217799753, y: 73.49371718837877, z: -15.935508280727596 },
+  { iso: '2031-06-15T12:00:00Z', x: 22.53253954687681, y: 74.14322214146198, z: -15.495633082983671 },
+]
+
+const SEDNA: OrbitalElements = {
+  semi_major_axis_au: 506.8,
+  eccentricity: 0.8496,
+  inclination_deg: 11.93,
+  longitude_ascending_node_deg: 144.26,
+  argument_perihelion_deg: 311.12,
+  mean_anomaly_deg: 358.01,
+  orbital_period_days: 4_160_000,
+}
+
+function solveAt(elements: OrbitalElements, isoDate: string): Vec3 {
+  const pre = precomputeOrbit(elements)
+  expect(pre).not.toBeNull()
+  const out: Vec3 = { x: 0, y: 0, z: 0 }
+  solveKeplerPosition(pre!, (new Date(isoDate).getTime() - J2000_MS) / MS_PER_DAY, out)
+  return out
+}
+
+describe('solveKeplerPosition (Golden-Werte aus backend/physics.py)', () => {
+  it.each(EARTH_CASES)('Erde $iso: positionsgleich mit dem Backend', ({ iso, x, y, z }) => {
+    const out = solveAt(EARTH, iso)
+    // 6 Dezimalen absolut: fängt Achsfehler (≈ AU-Größenordnung), toleriert
+    // aber Rundungswege (Backend rechnet M in Grad, Frontend in Radiant)
+    expect(out.x).toBeCloseTo(x, 6)
+    expect(out.y).toBeCloseTo(y, 6)
+    expect(out.z).toBeCloseTo(z, 6)
+  })
+
+  it.each(SEDNA_CASES)('Sedna $iso: positionsgleich mit dem Backend', ({ iso, x, y, z }) => {
+    const out = solveAt(SEDNA, iso)
+    expect(out.x).toBeCloseTo(x, 6)
+    expect(out.y).toBeCloseTo(y, 6)
+    expect(out.z).toBeCloseTo(z, 6)
+  })
+
+  it('calculateBodyPosition bleibt deckungsgleich mit der schnellen Variante', () => {
+    for (const c of SEDNA_CASES) {
+      const legacy = calculateBodyPosition(SEDNA, new Date(c.iso))!
+      const fast = solveAt(SEDNA, c.iso)
+      expect(fast.x).toBeCloseTo(legacy.x, 12)
+      expect(fast.y).toBeCloseTo(legacy.y, 12)
+      expect(fast.z).toBeCloseTo(legacy.z, 12)
+    }
   })
 })

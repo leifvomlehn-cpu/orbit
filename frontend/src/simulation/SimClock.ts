@@ -15,7 +15,7 @@ export class SimClock {
   private simMs: number
   /** Was useSyncExternalStore als Snapshot sieht — ändert sich NUR in notify(). */
   private notifiedMs: number
-  private speedDaysPerSecond = 50
+  private speedDaysPerSecond = 1
   private playing = false
   private listeners = new Set<ClockListener>()
   private lastNotify = 0

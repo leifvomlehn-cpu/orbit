@@ -622,21 +622,56 @@ body {
     font-size: 1.2rem;
 }
 
-/* Speed Control */
-.speed-control {
+/* Zeit-Presets (Welle 1) */
+.time-presets {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
+    flex-wrap: nowrap;
 }
 
-.speed-control label {
-    font-size: 0.85rem;
+.preset-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
     color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
     white-space: nowrap;
 }
 
-#speed-slider {
-    width: 120px;
+.preset-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
+.preset-btn.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
+#speed-value {
+    min-width: 58px;
+    font-size: 0.85rem;
+    color: var(--accent-primary);
+    font-weight: bold;
+    text-align: right;
+}
+
+/* Datums-Scrubber (Welle 1) */
+.time-scrubber {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 120px;
+    padding: 0 var(--spacing-md);
+}
+
+.time-scrubber input {
+    width: 100%;
     height: 6px;
     border-radius: 3px;
     background: var(--bg-tertiary);
@@ -646,7 +681,7 @@ body {
     accent-color: var(--accent-primary);
 }
 
-#speed-slider::-webkit-slider-thumb {
+.time-scrubber input::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 16px;
@@ -655,19 +690,6 @@ body {
     background: var(--accent-primary);
     cursor: pointer;
     box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
-    transition: transform 0.1s;
-}
-
-#speed-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
-}
-
-#speed-value {
-    min-width: 50px;
-    font-size: 0.85rem;
-    color: var(--accent-primary);
-    font-weight: bold;
-    text-align: right;
 }
 
 .date-input {
@@ -1158,10 +1180,11 @@ body {
         min-width: 60px;
     }
     
-    #speed-slider {
-        width: 100px;
+    .preset-btn {
+        font-size: 0.7rem;
+        padding: 6px 8px;
     }
-    
+
     /* Larger touch targets for sidebar */
     .body-item {
         padding: 14px 12px;
@@ -1223,8 +1246,10 @@ body {
         font-size: 16px !important;
     }
     
-    #speed-slider {
-        width: 80px;
+    .time-scrubber {
+        order: 4;
+        width: 100%;
+        padding: var(--spacing-xs) 0;
     }
 }
 

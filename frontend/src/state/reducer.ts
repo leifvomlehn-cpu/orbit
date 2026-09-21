@@ -70,7 +70,7 @@ export const initialState: AppState = {
   helpOpen: false,
   viewMode: '2d',
   playing: false,
-  speedDaysPerSecond: 50,
+  speedDaysPerSecond: 1,
   nbody: { active: false, years: 100, loading: false, cache: {}, bodyId: null },
   demo: { loading: false, active: null, statusTitle: null, statusDetail: null },
   error: null,

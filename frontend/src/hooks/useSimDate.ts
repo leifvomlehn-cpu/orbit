@@ -6,7 +6,12 @@ import { useSimClock } from '../state/AppContext'
  * NIE die Clock selbst in React-State spiegeln — sonst 60 Renders/Sekunde.
  */
 export function useSimDate(): Date {
-  const clock = useSimClock()
-  const ms = useSyncExternalStore(clock.subscribe, clock.getSnapshotMs)
+  const ms = useSimMs()
   return new Date(ms)
+}
+
+/** Gedrosselter Rohwert in ms (~5 Hz) — u. a. für den Datums-Scrubber. */
+export function useSimMs(): number {
+  const clock = useSimClock()
+  return useSyncExternalStore(clock.subscribe, clock.getSnapshotMs)
 }

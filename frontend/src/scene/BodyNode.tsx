@@ -1,13 +1,11 @@
-import { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { AdditiveBlending, DoubleSide, MathUtils } from 'three'
-import type { Group, OrthographicCamera, PerspectiveCamera } from 'three'
+import type { Group } from 'three'
 import type { CelestialBody } from '../types'
-import { calculateBodyPosition } from '../simulation/kepler'
-import { useAppDispatch, useAppState, useSimClock } from '../state/AppContext'
-import { toScene } from './coords'
-import { baseRadiusUnits, isStationary, screenFloorScale } from './sizing'
+import { useAppDispatch, useAppState } from '../state/AppContext'
+import { baseRadiusUnits, isStationary } from './sizing'
+import { registerBody, unregisterBody } from './registry'
 
 /** Saturn: reale Ring-Ausdehnung (C-Ring innen ≈ 1.24 R, A-Ring außen ≈ 2.27 R) */
 const SATURN_RING_INNER = 1.24
@@ -17,50 +15,47 @@ const SATURN_TILT_RAD = MathUtils.degToRad(26.7)
 
 interface BodyNodeProps {
   body: CelestialBody
+  /** iPad-Wächter: bei niedriger Qualitätsstufe kein Label-Occlusion (Raycast-/Blend-Kosten) */
+  lowQuality?: boolean
 }
 
 /**
- * Ein Himmelskörper: Mesh + Label. Position UND Bildschirm-Skalierung
- * laufen im Render-Loop über Refs — nie über React-State (SimClock-Regel).
+ * Ein Himmelskörper: Mesh + Label. Position, Bildschirm-Skalierung und
+ * Label-Sichtbarkeit setzt der Loop-Owner (SimulationTicker) pro Frame —
+ * diese Komponente registriert nur ihre Refs in der Szene-Registry.
  * Größen folgen echten Radius-Verhältnissen (sizing.ts); weit rausgezoomt
- * hält eine Planetarium-Untergrenze jeden Körper bei ≥ MIN_RADIUS_PX,
- * sonst wäre bei der Sedna-Gesamtansicht (~937 AU) nichts sichtbar.
+ * hält eine Planetarium-Untergrenze jeden Körper bei ≥ MIN_RADIUS_PX.
  */
-export default function BodyNode({ body }: BodyNodeProps) {
+export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
   const groupRef = useRef<Group>(null)
   const scaleRef = useRef<Group>(null)
   const labelAnchorRef = useRef<Group>(null)
-  const clock = useSimClock()
+  const labelDivRef = useRef<HTMLDivElement>(null)
   const dispatch = useAppDispatch()
   const selected = useAppState().selectedBodyId === body.id
   const isSun = isStationary(body)
   const radius = baseRadiusUnits(body)
 
-  useFrame(({ camera, size }) => {
+  useEffect(() => {
     const group = groupRef.current
-    if (!group) return
-    if (isSun) {
-      group.position.set(0, 0, 0)
-    } else {
-      const pos = calculateBodyPosition(body.orbital_elements, clock.getSimDate())
-      if (pos) group.position.set(...toScene(pos))
-    }
-
-    // Scene-Units je Bildschirm-Pixel aus der aktiven Kamera ableiten
-    let unitsPerPixel: number
-    const ortho = camera as OrthographicCamera
-    if (ortho.isOrthographicCamera) {
-      unitsPerPixel = (ortho.top - ortho.bottom) / ortho.zoom / size.height
-    } else {
-      const persp = camera as PerspectiveCamera
-      const dist = persp.position.distanceTo(group.position)
-      unitsPerPixel = (2 * dist * Math.tan(MathUtils.degToRad(persp.fov) / 2)) / size.height
-    }
-    const scale = screenFloorScale(radius, unitsPerPixel)
-    scaleRef.current?.scale.setScalar(scale)
-    // Label knapp über die sichtbare Kugel legen (sichtbarer Radius = radius·scale)
-    labelAnchorRef.current?.position.set(0, radius * scale * 1.3, 0)
-  })
+    const scaleGroup = scaleRef.current
+    const labelAnchor = labelAnchorRef.current
+    const labelDiv = labelDivRef.current
+    if (!group || !scaleGroup || !labelAnchor || !labelDiv) return
+    registerBody({
+      id: body.id,
+      elements: body.orbital_elements,
+      category: body.category,
+      radiusUnits: radius,
+      group,
+      scaleGroup,
+      labelAnchor,
+      labelDiv,
+      labelVisible: true,
+      pre: null,
+    })
+    return () => unregisterBody(body.id)
+  }, [body, radius])
 
   return (
     <group ref={groupRef}>
@@ -111,8 +106,9 @@ export default function BodyNode({ body }: BodyNodeProps) {
         )}
       </group>
       <group ref={labelAnchorRef} position={[0, radius * 1.3, 0]}>
-        <Html center zIndexRange={[5, 0]}>
+        <Html center zIndexRange={[5, 0]} occlude={lowQuality ? undefined : 'blending'}>
           <div
+            ref={labelDivRef}
             className={selected ? 'body-label selected' : 'body-label'}
             onClick={() => dispatch({ type: 'body/select', id: body.id })}
           >
