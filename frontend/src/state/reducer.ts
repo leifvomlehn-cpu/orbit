@@ -44,7 +44,6 @@ export interface AppState {
   bodies: CelestialBody[]
   bodiesLoaded: boolean
   selectedBodyId: string | null
-  hoveredBodyId: string | null
   categoryFilter: CategoryFilter
   searchQuery: string
   sidebarOpen: boolean
@@ -63,7 +62,6 @@ export const initialState: AppState = {
   bodies: [],
   bodiesLoaded: false,
   selectedBodyId: null,
-  hoveredBodyId: null,
   categoryFilter: 'all',
   searchQuery: '',
   sidebarOpen: true,
@@ -82,7 +80,6 @@ export type Action =
   | { type: 'bodies/loaded'; bodies: CelestialBody[] }
   | { type: 'bodies/loadFailed'; message: string }
   | { type: 'body/select'; id: string | null }
-  | { type: 'body/hover'; id: string | null }
   | { type: 'filter/set'; filter: CategoryFilter }
   | { type: 'search/set'; query: string }
   | { type: 'sidebar/toggle' }
@@ -120,9 +117,6 @@ export function appReducer(state: AppState, action: Action): AppState {
         selectedBodyId: action.id,
         infoPanelOpen: action.id !== null ? true : state.infoPanelOpen,
       }
-    case 'body/hover':
-      // Identitäts-Check: gleiche Hover-ID kehrt nicht rerendern
-      return state.hoveredBodyId === action.id ? state : { ...state, hoveredBodyId: action.id }
     case 'filter/set':
       return { ...state, categoryFilter: action.filter }
     case 'search/set':
@@ -146,7 +140,9 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'time/setSpeed':
       return { ...state, speedDaysPerSecond: action.daysPerSecond }
     case 'nbody/toggle':
-      return { ...state, nbody: { ...state.nbody, active: !state.nbody.active } }
+      // loading mit zurücksetzen: ein gecancelter Fetch dispatched nie wieder
+      // und würde loading sonst für immer auf true hängen lassen (Deep-Recon #5).
+      return { ...state, nbody: { ...state.nbody, active: !state.nbody.active, loading: false } }
     case 'nbody/setYears':
       return { ...state, nbody: { ...state.nbody, years: action.years } }
     case 'nbody/started':
@@ -164,7 +160,7 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'nbody/failed':
       return { ...state, nbody: { ...state.nbody, loading: false }, error: action.message }
     case 'nbody/cleared':
-      return { ...state, nbody: { ...state.nbody, active: false, bodyId: null } }
+      return { ...state, nbody: { ...state.nbody, active: false, bodyId: null, loading: false } }
     case 'demo/started':
       return {
         ...state,

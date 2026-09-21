@@ -13,6 +13,8 @@ const UI_NOTIFY_INTERVAL_MS = 200
  */
 export class SimClock {
   private simMs: number
+  /** Was useSyncExternalStore als Snapshot sieht — ändert sich NUR in notify(). */
+  private notifiedMs: number
   private speedDaysPerSecond = 50
   private playing = false
   private listeners = new Set<ClockListener>()
@@ -20,6 +22,7 @@ export class SimClock {
 
   constructor(now?: number) {
     this.simMs = now ?? Date.now()
+    this.notifiedMs = this.simMs
   }
 
   /** Vom Render-Loop aufgerufen. deltaSeconds = echte vergangene Sekunden. */
@@ -34,6 +37,9 @@ export class SimClock {
   }
 
   private notify(): void {
+    // Snapshot erst hier fortschreiben: tick() mutiert simMs pro Frame,
+    // notified aber gedrosselt — sonst Tearing im useSyncExternalStore.
+    this.notifiedMs = this.simMs
     for (const listener of this.listeners) listener(this.simMs)
   }
 
@@ -45,8 +51,16 @@ export class SimClock {
     }
   }
 
-  /** useSyncExternalStore-kompatibel. Arrow-Property = stabile Referenz. */
+  /** Live-Wert für den Render-Loop (useFrame). Arrow-Property = stabile Referenz. */
   getSimMs = (): number => this.simMs
+
+  /**
+   * Snapshot für useSyncExternalStore: ändert sich NUR bei notify().
+   * getSimMs() ist dafür ungeeignet — der Wert driftet zwischen den
+   * Benachrichtigungen (tick pro Frame) und bricht damit den Vertrag
+   * (Tearing / "getSnapshot should be cached"). Deep-Recon #4.
+   */
+  getSnapshotMs = (): number => this.notifiedMs
 
   getSimDate(): Date {
     return new Date(this.simMs)

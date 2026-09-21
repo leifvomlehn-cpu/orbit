@@ -70,11 +70,6 @@ export default function BodyNode({ body }: BodyNodeProps) {
             e.stopPropagation()
             dispatch({ type: 'body/select', id: body.id })
           }}
-          onPointerOver={(e) => {
-            e.stopPropagation()
-            dispatch({ type: 'body/hover', id: body.id })
-          }}
-          onPointerOut={() => dispatch({ type: 'body/hover', id: null })}
         >
           <sphereGeometry args={[radius, 32, 32]} />
           {isSun ? (

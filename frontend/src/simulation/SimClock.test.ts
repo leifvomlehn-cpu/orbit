@@ -68,4 +68,19 @@ describe('SimClock', () => {
     c.tick(0.016)
     expect(calls).toBe(1)
   })
+
+  it('getSnapshotMs bleibt zwischen notifies stabil (kein Tearing, Deep-Recon #4)', () => {
+    // useSyncExternalStore-Vertrag: der Snapshot darf sich nur bei notify()
+    // ändern, auch wenn tick() simMs pro Frame weiterschiebt.
+    const c = new SimClock(0)
+    c.setPlaying(true)
+    // Drossel deterministisch blockieren: kein Tick darf notifizieren.
+    const internals = c as unknown as { lastNotify: number }
+    internals.lastNotify = Number.POSITIVE_INFINITY
+    c.tick(1)
+    expect(c.getSimMs()).toBe(50 * MS_PER_DAY) // Live-Wert für den Render-Loop
+    expect(c.getSnapshotMs()).toBe(0) // Snapshot unverändert
+    c.setSimMs(1000) // notify → Snapshot folgt sofort
+    expect(c.getSnapshotMs()).toBe(1000)
+  })
 })

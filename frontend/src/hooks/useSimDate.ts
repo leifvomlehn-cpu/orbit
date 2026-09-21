@@ -7,6 +7,6 @@ import { useSimClock } from '../state/AppContext'
  */
 export function useSimDate(): Date {
   const clock = useSimClock()
-  const ms = useSyncExternalStore(clock.subscribe, clock.getSimMs)
+  const ms = useSyncExternalStore(clock.subscribe, clock.getSnapshotMs)
   return new Date(ms)
 }

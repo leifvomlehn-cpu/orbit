@@ -20,6 +20,10 @@ export default function NbodyControls() {
 
   useEffect(() => {
     if (!nbody.active || selectedBodyId === null) return
+    // Race-Guard (Deep-Recon #5): wechselt der Nutzer den Körper, während ein
+    // Fetch noch läuft, darf die überholte Response die Anzeige nicht
+    // überschreiben — cleanup setzt cancelled, Guards droppen die Response.
+    let cancelled = false
     const bodyId = selectedBodyId
     const years = nbody.years
     const key = nbodyCacheKey(bodyId, years)
@@ -44,6 +48,7 @@ export default function NbodyControls() {
         sample_every: params.sampleEvery,
       })
         .then((res) => {
+          if (cancelled) return
           const trajectories = extractTrajectories(res.simulation, [bodyId])
           const points = trajectories[bodyId]
           if (!points) throw new Error(`Body ${bodyId} nicht in der Simulation`)
@@ -60,6 +65,7 @@ export default function NbodyControls() {
           })
         })
         .catch((err: unknown) => {
+          if (cancelled) return
           dispatch({
             type: 'nbody/failed',
             message: err instanceof Error ? err.message : String(err),
@@ -67,7 +73,10 @@ export default function NbodyControls() {
         })
     }, 400)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
     // nbody.cache bewusst NICHT in den Deps — sonst loopt der Effekt nach jedem Cache-Eintrag
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nbody.active, selectedBodyId, nbody.years, dispatch])

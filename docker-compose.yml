@@ -8,8 +8,12 @@ services:
       context: ./backend
     container_name: orbital-backend
     restart: unless-stopped
+    # Deep-Recon #1: Backend nicht mehr ins LAN exposen — nur noch localhost
+    # (SSH-Tunnel: ssh -L 5556:localhost:5556 <syno>). Das Frontend erreicht
+    # das Backend über das interne Docker-Netz (nginx proxy_pass auf /api/),
+    # Port 5557 bleibt der einzige öffentliche Zugang.
     ports:
-      - "5556:5000"
+      - "127.0.0.1:5556:5000"
     volumes:
       - orbital-data:/app/data
     environment:

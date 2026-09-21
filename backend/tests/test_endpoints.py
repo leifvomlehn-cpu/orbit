@@ -302,3 +302,49 @@ class TestBodiesTnoType:
     def test_planets_have_no_tno_type_key(self, client):
         d = client.get('/api/bodies?category=planets').get_json()
         assert all('tno_type' not in b for b in d['bodies'])
+
+
+class TestJsonBodyErrors:
+    """Deep-Recon #3: ungültiges/fehlendes JSON landete über die
+    HTTPException von get_json() im generischen 500er statt als 400."""
+
+    def test_simulate_invalid_json_returns_400(self, client):
+        r = client.post('/api/simulate', data='{kaputt', content_type='application/json')
+        assert r.status_code == 400
+
+    def test_simulate_wrong_content_type_returns_400(self, client):
+        r = client.post('/api/simulate', data='bodies=earth', content_type='text/plain')
+        assert r.status_code == 400
+
+    def test_nbody_invalid_json_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', data='{kaputt', content_type='application/json')
+        assert r.status_code == 400
+
+    def test_nbody_wrong_content_type_returns_400(self, client):
+        r = client.post('/api/simulate/nbody', data='x=1', content_type='text/plain')
+        assert r.status_code == 400
+
+
+class TestEphemerisLimits:
+    """Deep-Recon #2: unbegrenzter Zeitraum -> ~220k Einträge (OOM/Payload)."""
+
+    def test_huge_range_returns_400(self, client):
+        r = client.get('/api/ephemeris?start_date=1900-01-01&end_date=2500-01-01&interval_days=1')
+        assert r.status_code == 400
+        assert r.get_json()['max_entries'] == 2000
+
+    def test_range_within_limit_passes(self, client):
+        r = client.get('/api/ephemeris?start_date=2026-01-01&end_date=2027-12-31&interval_days=1')
+        assert r.status_code == 200
+
+
+class TestCorsLockedDown:
+    """Deep-Recon #1: Origins-Whitelist statt '*'."""
+
+    def test_unknown_origin_gets_no_cors_header(self, client):
+        r = client.get('/api/health', headers={'Origin': 'http://evil.example'})
+        assert 'Access-Control-Allow-Origin' not in r.headers
+
+    def test_dev_origin_is_allowed(self, client):
+        r = client.get('/api/health', headers={'Origin': 'http://localhost:5173'})
+        assert r.headers.get('Access-Control-Allow-Origin') == 'http://localhost:5173'

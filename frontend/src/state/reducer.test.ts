@@ -69,10 +69,18 @@ describe('appReducer', () => {
     expect(s.infoPanelOpen).toBe(true)
   })
 
-  it('body/hover mit gleicher ID gibt denselben State zurück (kein Rerender)', () => {
-    const s1: AppState = { ...initialState, hoveredBodyId: 'mars' }
-    const s2 = appReducer(s1, { type: 'body/hover', id: 'mars' })
-    expect(s2).toBe(s1)
+  it('nbody/toggle und nbody/cleared setzen loading zurück (Deep-Recon #5)', () => {
+    // Ein gecancelter Fetch dispatched nie — ohne Reset bliebe loading
+    // für immer true hängen.
+    const running: AppState = {
+      ...initialState,
+      nbody: { ...initialState.nbody, active: true, loading: true, bodyId: 'mars' },
+    }
+    const toggled = appReducer(running, { type: 'nbody/toggle' })
+    expect(toggled.nbody.loading).toBe(false)
+    const cleared = appReducer(running, { type: 'nbody/cleared' })
+    expect(cleared.nbody.loading).toBe(false)
+    expect(cleared.nbody.bodyId).toBeNull()
   })
 
   it('ui/closePanels schließt alle Panels', () => {

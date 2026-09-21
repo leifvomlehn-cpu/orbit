@@ -15,6 +15,7 @@ Date: 2026-04-06
 
 import json
 import math
+import os
 from datetime import datetime, timedelta, timezone
 
 
@@ -48,6 +49,7 @@ import logging
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from flask_caching import Cache
+from werkzeug.exceptions import HTTPException
 import numpy as np
 
 # Import local modules
@@ -78,10 +80,16 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 
-# Configure CORS for frontend access
+# CORS nur für explizit freigegebene Origins (Deep-Recon #1).
+# Prod läuft same-origin über den nginx-Proxy (Port 5557) und braucht kein
+# CORS; der Default deckt nur den lokalen Vite-Dev-Server ab. Weitere Origins
+# per Env CORS_ORIGINS (Komma-getrennt) — niemals wieder "*".
+_cors_origins = [o.strip() for o in os.environ.get(
+    'CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'
+).split(',') if o.strip()]
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["*"],
+        "origins": _cors_origins,
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type"]
     }
@@ -98,6 +106,10 @@ cache = Cache(app, config={
 AU_TO_KM = 149597870.7  # 1 AU in km
 G = 6.67430e-11  # Gravitational constant
 SOLAR_MASS = 1.989e30  # kg
+
+# Deep-Recon #2: Ephemeris-Antworten deckeln — ein GET 1900→2500 mit
+# interval_days=1 erzeugte ~220k Einträge (Speicher + MB-großes JSON).
+MAX_EPHEMERIS_ENTRIES = 2000
 
 
 def handle_errors(f):
@@ -120,6 +132,15 @@ def handle_errors(f):
                 'message': f'Das angeforderte Objekt "{str(e)}" existiert nicht.',
                 'endpoint': f.__name__
             }), 404
+        except HTTPException as e:
+            # Werkzeug-HTTPExceptions (z.B. 415 von get_json bei falschem
+            # Content-Type) nicht als 500 verkleiden — Status durchreichen.
+            logger.warning(f"HTTP {e.code} in {f.__name__}: {e.description}")
+            return jsonify({
+                'error': e.name,
+                'message': e.description,
+                'endpoint': f.__name__
+            }), e.code
         except Exception as e:
             logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
             return jsonify({
@@ -452,7 +473,9 @@ def run_simulation() -> Response:
     Returns:
         JSON object with simulation results
     """
-    data = request.get_json()
+    # silent=True: ungültiges JSON / falscher Content-Type -> None -> 400
+    # statt HTTPException im generischen 500er (Deep-Recon #3).
+    data = request.get_json(silent=True)
     
     if not data:
         return jsonify({
@@ -548,7 +571,8 @@ def run_nbody_simulation() -> Response:
     """
     from nbody import simulate_nbody, MAX_NBODY_STEPS, MAX_NBODY_SAMPLES
 
-    data = request.get_json()
+    # silent=True wie in run_simulation (Deep-Recon #3).
+    data = request.get_json(silent=True)
     if not data:
         return jsonify({
             'error': 'Keine Daten erhalten',
@@ -896,6 +920,17 @@ def get_ephemeris() -> Response:
     except ValueError:
         interval_days = 7
     
+    # Deep-Recon #2: Eintragszahl deckeln, BEVOR die Schleife läuft.
+    n_entries = int((end_date - start_date).days / interval_days) + 1
+    if n_entries > MAX_EPHEMERIS_ENTRIES:
+        return jsonify({
+            'error': 'Zeitraum zu groß',
+            'message': f'{n_entries:,} Einträge übersteigen das Limit von '
+                       f'{MAX_EPHEMERIS_ENTRIES:,}. Zeitraum verkürzen oder '
+                       'interval_days vergrößern.',
+            'max_entries': MAX_EPHEMERIS_ENTRIES
+        }), 400
+
     # Generate ephemeris
     ephemeris = []
     current_date = start_date
