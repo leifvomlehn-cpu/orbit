@@ -58,9 +58,10 @@ export default function BodyNode({ body, lowQuality = false }: BodyNodeProps) {
   const labelDivRef = useRef<HTMLDivElement>(null)
   const occludedRef = useRef(false)
   const dispatch = useAppDispatch()
-  const selected = useAppState().selectedBodyId === body.id
+  const { selectedBodyId, scaleMode } = useAppState()
+  const selected = selectedBodyId === body.id
   const isSun = isStationary(body)
-  const radius = baseRadiusUnits(body)
+  const radius = baseRadiusUnits(body, scaleMode)
   const texture = useBodyTexture(bodyTextureFile(body.id))
   const obliquity = body.physical_data.obliquity_deg
 

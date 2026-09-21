@@ -4,9 +4,9 @@ Docker-basiertes Orbital-Simulationssystem für Synology DS918+ mit 12 GB RAM.
 Visualisiert Planeten, Zwergplaneten, TNOs und die Planet-9-Hypothese auf Basis
 heliozentrischer Kepler-Bahnen.
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-green)
-![Tests](https://img.shields.io/badge/tests-117_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-196_passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
 ## ✨ Features
@@ -21,20 +21,24 @@ heliozentrischer Kepler-Bahnen.
 ### 🔬 Bahnmechanik
 - Heliozentrische **Kepler-Bahnen** auf J2000.0-Epoche
 - Newton-Raphson-Löser für die Kepler-Gleichung (Konvergenz bei e ≥ 0.9 getestet)
-- Vis-viva-Geschwindigkeit, Synodische Perioden, Orbitalpfade, Ephemeriden
-- ⚠️ **Keine N-Body-Perturbationen** — jeder Körper folgt seiner ungestörten Kepler-Bahn.
-  Reale Jupiter/Saturn-Störungen auf TNO-Bahnen sind aktuell nicht abgebildet.
+- Vis-viva-Geschwindigkeit, Synodische Perioden, Orbitalpfade
+- **N-Body-Simulation** via `/api/simulate/nbody` (RK4 / symplektischer Verlet,
+  baryzentrisch, numba-beschleunigt) inkl. Planet-9-Testläufen
 
 ### 🎮 Frontend
-- Canvas-2D mit Pseudo-3D-Achsenrotation (echtes 3D mit Tiefenstaffelung noch offen)
-- Zeitsteuerung mit Animation, Zoom & Pan
+- React + TypeScript + three.js (react-three-fiber): orthografische 2D-Draufsicht
+  und frei drehbare 3D-Ansicht
+- **Zwei Maßstäbe**: Planetarium (lesbar übertrieben) ↔ Echtmaßstab 1:1
+- Erdmond mit echten geozentrischen Bahnelementen, Texturen (CC BY 4.0),
+  Achsneigungen, datengetriebene Ringe, Auto-Hide der UI
+- Zeitsteuerung mit Animation, Zoom & Pan, Fokus-Flüge
 - iPad-/Touch-optimiert (Bedienelemente ≥ 44 × 44 px)
 - Production-Caching (1 Tag JS/CSS, 7 Tage Assets)
 
 ### 🧪 Test-Suite
-- **117 pytest-Tests** über Physik, Endpoints, Datenintegrität
-- Parametrize über alle 31 Himmelskörper für Strukturvalidierung
-- Lokal-Run in < 1 s
+- **196 pytest-Tests** über Physik, Endpoints, Datenintegrität, Mond, N-Body
+- Parametrize über alle Himmelskörper für Strukturvalidierung
+- Frontend: Vitest für Skalierung, Sichtbarkeit, Kepler, Reducer
 
 ---
 
@@ -80,9 +84,11 @@ zieht der Build den alten Layer.
 | Dienst     | URL                          |
 | ---------- | ---------------------------- |
 | Frontend   | http://&lt;nas&gt;:5557      |
-| Backend    | http://&lt;nas&gt;:5556      |
-| API-Probe  | http://&lt;nas&gt;:5556/api/health |
-| Bodies     | http://&lt;nas&gt;:5556/api/bodies |
+| API-Probe  | http://&lt;nas&gt;:5557/api/health (via nginx-Proxy) |
+
+Das Backend ist **nicht** im LAN erreichbar — Port 5556 bindet an localhost
+(SSH-Tunnel: `ssh -L 5556:localhost:5556 &lt;nas&gt;`); das Frontend proxied `/api/`
+intern per Docker-Netz.
 
 ---
 
@@ -110,21 +116,21 @@ docker compose run --rm backend sh -c \
 
 ## 📚 API-Endpunkte
 
-| Endpoint                              | Methode | Beschreibung                                |
-| ------------------------------------- | ------- | ------------------------------------------- |
-| `/api/health`                         | GET     | Systemstatus                                |
-| `/api/bodies`                         | GET     | Alle Himmelskörper                          |
-| `/api/bodies?include_planet9=true`    | GET     | inkl. Planet-9-Vorhersage (neu in 1.1)      |
-| `/api/bodies?category=planets`        | GET     | nur Planeten (oder `dwarf_planets`, `tnos`) |
-| `/api/bodies/<id>`                    | GET     | Einzelner Körper (auch via deutschen Namen) |
-| `/api/position/<id>/<timestamp>`      | GET     | Position berechnen (ISO 8601 oder `now`)    |
-| `/api/orbit/<id>?points=N`            | GET     | Bahnpfad mit N Punkten                      |
-| `/api/simulate`                       | POST    | Zeitreihen-Simulation (Kepler, kein N-Body) |
-| `/api/planet9/search`                 | GET     | Planet-9-Suchzone + TNO-Clustering          |
-| `/api/tno/discoveries`                | GET     | TNO-Entdeckungsgeschichte                   |
-| `/api/categories`                     | GET     | Kategorien & Farben                         |
-| `/api/time/convert`                   | GET     | Julian Date ↔ ISO 8601                      |
-| `/api/ephemeris`                      | GET     | Ephemeriden-Tabelle                         |
+| Endpoint                              | Methode | Beschreibung                                  |
+| ------------------------------------- | ------- | --------------------------------------------- |
+| `/api/health`                         | GET     | Systemstatus                                  |
+| `/api/bodies`                         | GET     | Alle Himmelskörper                            |
+| `/api/bodies?include_planet9=true`    | GET     | inkl. Planet-9-Vorhersage                     |
+| `/api/bodies?category=planets`        | GET     | nur Planeten (oder `dwarf_planets`, `tnos`)   |
+| `/api/bodies/<id>`                    | GET     | Einzelner Körper (auch via deutschen Namen)   |
+| `/api/position/<id>/<timestamp>`      | GET     | Position berechnen (ISO 8601 oder `now`)      |
+| `/api/orbit/<id>?points=N`            | GET     | Bahnpfad mit N Punkten                        |
+| `/api/simulate/nbody`                 | POST    | N-Body-Simulation (RK4/Verlet, baryzentrisch) |
+| `/api/planet9/search`                 | GET     | Planet-9-Suchzone + TNO-Clustering            |
+
+(API-Leichen-Paket 21.09.2026: die ungenutzten Endpunkte `/api/simulate`,
+`/api/tno/discoveries`, `/api/categories`, `/api/time/convert` und
+`/api/ephemeris` wurden entfernt — das Frontend nutzt sie nicht.)
 
 ### Beispiel: Position abfragen
 
@@ -132,12 +138,12 @@ docker compose run --rm backend sh -c \
 curl "http://localhost:5556/api/position/earth/2026-04-06T12:00:00"
 ```
 
-### Beispiel: Simulation starten
+### Beispiel: N-Body-Simulation starten
 
 ```bash
-curl -X POST "http://localhost:5556/api/simulate" \
+curl -X POST "http://localhost:5556/api/simulate/nbody" \
   -H "Content-Type: application/json" \
-  -d '{"bodies":["earth","mars","jupiter"],"start_time":"2026-01-01","end_time":"2027-01-01","steps":100}'
+  -d '{"bodies":["sun","earth","jupiter"],"start_time":"2026-01-01","duration_days":365,"step_days":1.0}'
 ```
 
 ---
@@ -146,12 +152,9 @@ curl -X POST "http://localhost:5556/api/simulate" \
 
 | # | Limitierung                                  | Auswirkung                                                                              | Plan                              |
 | - | -------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------- |
-| 1 | Keine N-Body-Sim                             | Jupiter/Saturn-Störung auf TNOs nicht modelliert                                        | RK4-Integration (Sprint A)        |
-| 2 | Frontend rechnet doppelt                     | Kepler-Solver läuft im Backend UND im Frontend-JS                                       | Server-only nach Three.js-Umstieg |
-| 3 | Pseudo-3D                                    | Achsenrotation ohne Tiefe/Perspektive                                                   | Three.js-Sprint (Sprint B)        |
-| 4 | `key_prefix='all_bodies'` ignoriert Args     | Cache-Hit zwischen Query-Varianten — Tests kompensieren via `cache.clear()`-Fixture     | Endpoint-Refactor offen           |
-| 5 | Statische Body-Daten                         | Neue TNO-Entdeckungen nur per Code-Edit                                                 | JPL-Horizons-Pipeline (Sprint C)  |
-| 6 | Sortierung nur nach `a`                      | TNOs mit ähnlicher Halbachse aber stark unterschiedlicher Inklination clustern in UI    | UI-Filter offen                   |
+| 1 | Statische Body-Daten                         | Neue TNO-Entdeckungen nur per Code-Edit                                                 | JPL-Horizons-Pipeline (Sprint C)  |
+| 2 | Sortierung nur nach `a`                      | TNOs mit ähnlicher Halbachse aber stark unterschiedlicher Inklination clustern in UI    | UI-Filter offen                   |
+| 3 | Echtmaßstab: float32-Vertex-Präzision        | Ferne Kleinkörper (Radius ~8e-6 AU) degenerieren beim Anflug ab ~500 AU Bahnradius      | Kamerarelative Koordinaten offen  |
 
 ---
 
@@ -193,6 +196,19 @@ deutscher Sprache, Tooltips zeigen „Wusstest du?"-Fakten.
 ---
 
 ## 📝 Changelog
+
+### v1.2.0 (September 2026) — React-Rewrite, Mond, Echtmaßstab, API-Leichen
+- **Sprint B:** Frontend komplett React + TS + react-three-fiber (2D-Ortho + 3D)
+- **Mond:** echte geozentrische J2000-Elemente, klickbar, Planetarium ×75
+- **Echtmaßstab-Modus 1:1:** Toggle Planetarium ↔ real (echte Radien in AU,
+  echte Mondbahn, adaptive near/far-Kamera, Labels als Marker)
+- **Auto-Hide:** Steuer-UI fadet nach 3 s ohne Eingabe weg
+- **API-Leichen-Paket:** 5 ungenutzte Endpunkte entfernt (simulate-Kepler,
+  tno/discoveries, categories, time/convert, ephemeris), tote
+  physics-Funktionen + scipy entfernt, falsche TNO-IDs korrigiert
+  (`2004_vn112`, `2005_rm43`), 196 Tests grün
+- Backend: CORS-Whitelist, Port 5556 nur localhost, gunicorn 1w/8t,
+  fail-fast bei e ≥ 1, zirkuläre TNO-Statistik
 
 ### v1.1.0 (Mai 2026) — Hausaufgaben-Sprint
 - **E.1** Dependency-Konflikt aufgelöst (Flask 2/Werkzeug 3 → Flask 3.0.3 + Werkzeug 3.0.4)

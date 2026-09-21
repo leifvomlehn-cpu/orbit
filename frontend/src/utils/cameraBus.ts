@@ -1,6 +1,7 @@
 import { MathUtils, Vector3 } from 'three'
 import type { OrthographicCamera } from 'three'
 import type { CameraControls } from '@react-three/drei'
+import type { ScaleMode } from '../state/reducer'
 
 /**
  * Brücke zwischen DOM-Seite (Buttons, Tastenkürzel, Fokus-Flüge) und den
@@ -15,6 +16,11 @@ const tmpTarget = new Vector3()
 
 export function registerControls(instance: CameraControls | null): void {
   controls = instance
+}
+
+/** Aktuelle Kamera-zu-Ziel-Distanz (für adaptive near/far im Echtmaßstab). */
+export function getControlsDistance(): number | null {
+  return controls ? controls.distance : null
 }
 
 function isOrtho(cam: unknown): cam is OrthographicCamera {
@@ -52,13 +58,22 @@ export function resetView(): void {
  * bleibt senkrecht über der Ekliptik. 3D (perspektivisch): Blickrichtung
  * beibehalten, Distanz auf das 20-Fache des sichtbaren Radius.
  */
-export function focusOnBody(x: number, y: number, z: number, radiusUnits: number): void {
+export function focusOnBody(
+  x: number,
+  y: number,
+  z: number,
+  radiusUnits: number,
+  scaleMode: ScaleMode = 'planetarium',
+): void {
   if (!controls) return
   const cam = controls.camera
-  const dist = Math.max(radiusUnits * 20, 0.5)
+  // Echtmaßstab: Erdradius ist 4,3e-5 Units — Mindestdistanz/-zoom müssen
+  // um Größenordnungen tiefer greifen als im Planetarium.
+  const dist = Math.max(radiusUnits * 20, scaleMode === 'real' ? 1e-6 : 0.5)
 
   if (isOrtho(cam)) {
-    const zoom = MathUtils.clamp((cam.top - cam.bottom) / (2 * dist), 0.4, 400)
+    const maxZoom = scaleMode === 'real' ? 1e8 : 400
+    const zoom = MathUtils.clamp((cam.top - cam.bottom) / (2 * dist), 0.4, maxZoom)
     // minimaler z-Versatz: exakt senkrecht wäre degeneriert (up ∥ Blickachse)
     void controls
       .setLookAt(x, cam.position.y, z + 0.0001, x, 0, z, true)

@@ -137,6 +137,14 @@ describe('appReducer', () => {
     const s2 = appReducer(s1, { type: 'error/dismiss' })
     expect(s2.error).toBeNull()
   })
+
+  it('scaleMode/set schaltet Planetarium ↔ Echtmaßstab um', () => {
+    expect(initialState.scaleMode).toBe('planetarium')
+    const s = appReducer(initialState, { type: 'scaleMode/set', mode: 'real' })
+    expect(s.scaleMode).toBe('real')
+    const back = appReducer(s, { type: 'scaleMode/set', mode: 'planetarium' })
+    expect(back.scaleMode).toBe('planetarium')
+  })
 })
 
 describe('selectVisibleBodies', () => {

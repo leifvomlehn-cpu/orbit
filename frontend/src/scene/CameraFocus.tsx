@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useAppState } from '../state/AppContext'
 import { getBodyEntry } from './registry'
+import { baseRadiusUnits } from './sizing'
 import { focusOnBody } from '../utils/cameraBus'
 
 /**
@@ -10,13 +11,18 @@ import { focusOnBody } from '../utils/cameraBus'
  * Abwahl (null) löst bewusst keinen Flug aus.
  */
 export default function CameraFocus() {
-  const selectedBodyId = useAppState().selectedBodyId
+  const { bodies, selectedBodyId, scaleMode } = useAppState()
   useEffect(() => {
     if (!selectedBodyId) return
     const entry = getBodyEntry(selectedBodyId)
-    if (!entry) return
+    const body = bodies.find((b) => b.id === selectedBodyId)
+    if (!entry || !body) return
     const p = entry.group.position
-    focusOnBody(p.x, p.y, p.z, entry.radiusUnits)
-  }, [selectedBodyId])
+    // Radius frisch aus den Body-Daten berechnen — NICHT entry.radiusUnits:
+    // die Registry wird von BodyNode erst NACH diesem Effect neu registriert
+    // (Sibling-Reihenfolge) und läge bei einem Moduswechsel einen Modus
+    // hinterher (Abnahme-Befund 21.09.2026).
+    focusOnBody(p.x, p.y, p.z, baseRadiusUnits(body, scaleMode), scaleMode)
+  }, [selectedBodyId, scaleMode, bodies])
   return null
 }

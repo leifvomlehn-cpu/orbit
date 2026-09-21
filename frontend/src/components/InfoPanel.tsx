@@ -23,7 +23,7 @@ function formatRotation(hours: number): string {
 /** Detail-Panel rechts: alle Daten stecken schon im bodies-Bootstrap. */
 export default function InfoPanel() {
   const dispatch = useAppDispatch()
-  const { bodies, selectedBodyId, infoPanelOpen } = useAppState()
+  const { bodies, selectedBodyId, infoPanelOpen, scaleMode } = useAppState()
   const simDate = useSimDate()
 
   const body = bodies.find((b) => b.id === selectedBodyId) ?? null
@@ -104,11 +104,18 @@ export default function InfoPanel() {
                   </div>
                 )}
               </div>
-              {parent && (
+              {parent && scaleMode === 'planetarium' && (
                 <p className="info-note">
                   Hinweis: Der Abstand ist in der Ansicht ×{MOON_ORBIT_EXAGGERATION} vergrößert
                   dargestellt — echt läge der Mond bei den übertriebenen Planetengrößen
                   unsichtbar im Inneren der Erde. Bahnform und Umlaufzeit sind echt.
+                </p>
+              )}
+              {parent && scaleMode === 'real' && (
+                <p className="info-note">
+                  Echtmaßstab 1:1: Abstand und Größe des Mondes sind echt — in der
+                  Systemansicht ist er unsichtbar klein, beim Erde-Fokus kreist er
+                  auf echten 384.400 km.
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@ import { CameraControls, OrthographicCamera, PerspectiveCamera } from '@react-th
 import { CameraControlsImpl } from '@react-three/drei'
 import type { CameraControls as CameraControlsType } from '@react-three/drei'
 import type { ViewMode } from '../state/reducer'
+import { useAppState } from '../state/AppContext'
 import { registerControls } from '../utils/cameraBus'
 
 /**
@@ -17,6 +18,7 @@ import { registerControls } from '../utils/cameraBus'
  * Draufsicht, in der die Bahnen gegen den Uhrzeigersinn laufen.
  */
 export default function CameraRig({ mode }: { mode: ViewMode }) {
+  const scaleMode = useAppState().scaleMode
   const setup = useCallback(
     (controls: CameraControlsType | null) => {
       registerControls(controls)
@@ -29,7 +31,8 @@ export default function CameraRig({ mode }: { mode: ViewMode }) {
         controls.minAzimuthAngle = 0
         controls.maxAzimuthAngle = 0
         controls.minZoom = 0.4
-        controls.maxZoom = 400
+        // Echtmaßstab: Erde ist 4,3e-5 Units — Zoom-Grenze weit höher
+        controls.maxZoom = scaleMode === 'real' ? 1e8 : 400
         controls.mouseButtons.left = CameraControlsImpl.ACTION.TRUCK
         controls.mouseButtons.middle = CameraControlsImpl.ACTION.ZOOM
         controls.mouseButtons.right = CameraControlsImpl.ACTION.TRUCK
@@ -38,11 +41,12 @@ export default function CameraRig({ mode }: { mode: ViewMode }) {
         controls.touches.two = CameraControlsImpl.ACTION.TOUCH_ZOOM
         controls.touches.three = CameraControlsImpl.ACTION.TOUCH_TRUCK
       } else {
-        controls.minDistance = 0.5
-        controls.maxDistance = 1500
+        // Echtmaßstab: Fokus-Distanzen bis ~1e-6 (Erde), Übersicht bis Sedna
+        controls.minDistance = scaleMode === 'real' ? 1e-7 : 0.5
+        controls.maxDistance = scaleMode === 'real' ? 3000 : 1500
       }
     },
-    [mode],
+    [mode, scaleMode],
   )
 
   if (mode === '2d') {

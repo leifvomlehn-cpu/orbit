@@ -8,7 +8,7 @@ import CameraRig from './CameraRig'
 import CameraFocus from './CameraFocus'
 import SimulationTicker from './SimulationTicker'
 import TrajectoryLines from './TrajectoryLines'
-import { MOON_ORBIT_EXAGGERATION } from './sizing'
+import { moonOrbitScale } from './sizing'
 
 /**
  * Die eine three.js-Szene: 2D ist die orthografische Draufsicht,
@@ -18,7 +18,7 @@ import { MOON_ORBIT_EXAGGERATION } from './sizing'
  * niedriger fps DPR + Details, bei Flipflops endgültig (onFallback).
  */
 export default function SolarSystemScene() {
-  const { bodies, viewMode } = useAppState()
+  const { bodies, viewMode, scaleMode } = useAppState()
   const dispatch = useAppDispatch()
   const [dpr, setDpr] = useState<[number, number]>([1, 2])
   const [lowQuality, setLowQuality] = useState(false)
@@ -73,7 +73,7 @@ export default function SolarSystemScene() {
               color={body.color}
               dashed={body.category === 'planet9'}
               parentId={body.parent_id ?? undefined}
-              scale={body.parent_id ? MOON_ORBIT_EXAGGERATION : 1}
+              scale={body.parent_id ? moonOrbitScale(scaleMode) : 1}
             />
           ) : null,
         )}

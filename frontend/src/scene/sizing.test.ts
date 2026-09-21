@@ -9,6 +9,7 @@ import {
   MIN_RADIUS_PX_FLOOR,
   minRadiusPx,
   MOON_ORBIT_EXAGGERATION,
+  moonOrbitScale,
   ringRadiusUnits,
   screenFloorScale,
 } from './sizing'
@@ -179,5 +180,34 @@ describe('Mond (Kategorie moon)', () => {
     // muss klar außerhalb des Sonnen-Anzeigeradius (×60) bleiben.
     const sunDisplayRadius = (695700 / KM_PER_AU) * EXAGGERATION.star
     expect(1 - displayed).toBeGreaterThan(sunDisplayRadius * 1.5)
+  })
+})
+
+describe('Echtmaßstab-Modus (scaleMode real)', () => {
+  it('baseRadiusUnits liefert den physikalischen Radius in AU (Erde ≈ 4,26e-5)', () => {
+    const earth = baseRadiusUnits(makeBody(6371.0, 'planet', 1), 'real')
+    expect(earth).toBeCloseTo(6371.0 / KM_PER_AU, 15)
+  })
+
+  it('Sonne im Echtmaßstab: echter Radius, kein Star-Faktor', () => {
+    const sun = baseRadiusUnits(makeBody(696_340, 'planet', 0), 'real')
+    expect(sun).toBeCloseTo(696_340 / KM_PER_AU, 15)
+    expect(sun).toBeLessThan(0.005)
+  })
+
+  it('echte Größenverhältnisse bleiben erhalten (Sonne ≈ 10× Jupiter)', () => {
+    const jupiter = baseRadiusUnits(makeBody(69911, 'planet', 5.2), 'real')
+    const sun = baseRadiusUnits(makeBody(696_340, 'planet', 0), 'real')
+    expect(sun / jupiter).toBeCloseTo(696_340 / 69911, 5)
+  })
+
+  it('moonOrbitScale: real = 1 (echter Abstand), planetarium = Übertreibung', () => {
+    expect(moonOrbitScale('real')).toBe(1)
+    expect(moonOrbitScale('planetarium')).toBe(MOON_ORBIT_EXAGGERATION)
+  })
+
+  it('ringRadiusUnits real: km/KM_PER_AU ohne Übertreibung', () => {
+    const saturn = makeBody(58232, 'planet', 9.5)
+    expect(ringRadiusUnits(saturn, 136780, 'real')).toBeCloseTo(136780 / KM_PER_AU, 15)
   })
 })

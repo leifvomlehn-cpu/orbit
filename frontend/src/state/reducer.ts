@@ -2,6 +2,10 @@ import type { CelestialBody, Vec3 } from '../types'
 
 export type CategoryFilter = 'all' | 'planets' | 'dwarf_planets' | 'tnos' | 'extreme'
 export type ViewMode = '2d' | '3d'
+/** Planetarium = lesbare Übertreibungen (Radien ×1500/×60, Mondbahn ×75,
+ *  px-Untergrenzen); real = Echtmaßstab 1:1 (1 Unit = 1 AU, Radien echt,
+ *  Mondbahn echt). */
+export type ScaleMode = 'planetarium' | 'real'
 export type DemoId = 'sedna10k' | 'sednoidCluster' | 'planet9Test'
 
 /** Ein Cache-Eintrag des N-Body-Vergleichs (heliozentrische Punkte). */
@@ -51,6 +55,7 @@ export interface AppState {
   planet9PanelOpen: boolean
   helpOpen: boolean
   viewMode: ViewMode
+  scaleMode: ScaleMode
   playing: boolean
   speedDaysPerSecond: number
   nbody: NbodyCompareState
@@ -69,6 +74,7 @@ export const initialState: AppState = {
   planet9PanelOpen: false,
   helpOpen: false,
   viewMode: '2d',
+  scaleMode: 'planetarium',
   playing: false,
   speedDaysPerSecond: 1,
   nbody: { active: false, years: 100, loading: false, cache: {}, bodyId: null },
@@ -88,6 +94,7 @@ export type Action =
   | { type: 'help/set'; open: boolean }
   | { type: 'ui/closePanels' }
   | { type: 'view/set'; mode: ViewMode }
+  | { type: 'scaleMode/set'; mode: ScaleMode }
   | { type: 'time/setPlaying'; playing: boolean }
   | { type: 'time/togglePlaying' }
   | { type: 'time/setSpeed'; daysPerSecond: number }
@@ -133,6 +140,8 @@ export function appReducer(state: AppState, action: Action): AppState {
       return { ...state, infoPanelOpen: false, planet9PanelOpen: false, helpOpen: false }
     case 'view/set':
       return { ...state, viewMode: action.mode }
+    case 'scaleMode/set':
+      return { ...state, scaleMode: action.mode }
     case 'time/setPlaying':
       return { ...state, playing: action.playing }
     case 'time/togglePlaying':

@@ -3,6 +3,7 @@ import { DoubleSide, RingGeometry } from 'three'
 import type { CelestialBody, RingData } from '../types'
 import { ringRadiusUnits } from './sizing'
 import { SATURN_RING_TEXTURE_FILE, useBodyTexture } from './textures'
+import { useAppState } from '../state/AppContext'
 
 /** Unter dieser optischen Tiefe ist ein Ring praktisch unsichtbar und wird
  *  nicht gerendert (Jupiters Gossamer-Ringe τ ~ 1e-7, Saturn D/G/E). */
@@ -34,10 +35,11 @@ function remapRadialUVs(geometry: RingGeometry, inner: number, outer: number): v
  *  den Backend-Daten); D/G/E sind praktisch unsichtbar und fehlen bewusst. */
 function SaturnRings({ body, rings }: { body: CelestialBody; rings: RingData[] }) {
   const texture = useBodyTexture(SATURN_RING_TEXTURE_FILE)
+  const scaleMode = useAppState().scaleMode
   const innerKm = Math.min(...rings.map((r) => r.inner_radius_km))
   const outerKm = Math.max(...rings.map((r) => r.outer_radius_km))
-  const inner = ringRadiusUnits(body, innerKm)
-  const outer = ringRadiusUnits(body, outerKm)
+  const inner = ringRadiusUnits(body, innerKm, scaleMode)
+  const outer = ringRadiusUnits(body, outerKm, scaleMode)
   const geometry = useMemo(() => {
     const geo = new RingGeometry(inner, outer, 128, 1)
     remapRadialUVs(geo, inner, outer)
@@ -64,6 +66,8 @@ function SaturnRings({ body, rings }: { body: CelestialBody; rings: RingData[] }
  * Die Neigung kommt über den Achsen-Tilt in BodyNode (obliquity_deg).
  */
 export default function PlanetRings({ body }: { body: CelestialBody }) {
+  // Hook VOR dem Early-Return (Hook-Reihenfolge muss stabil bleiben)
+  const scaleMode = useAppState().scaleMode
   const rings = body.physical_data.rings
   if (!rings || rings.length === 0) return null
   if (body.id === 'saturn') {
@@ -78,11 +82,13 @@ export default function PlanetRings({ body }: { body: CelestialBody }) {
   return (
     <>
       {visible.map((ring) => {
-        const inner = ringRadiusUnits(body, ring.inner_radius_km)
-        const width = Math.max(
-          ringRadiusUnits(body, ring.outer_radius_km) - inner,
-          inner * MIN_WIDTH_FRACTION,
-        )
+        const inner = ringRadiusUnits(body, ring.inner_radius_km, scaleMode)
+        const outer = ringRadiusUnits(body, ring.outer_radius_km, scaleMode)
+        // Planetarium: schmale Ringe auf Mindestbreite ziehen — real: echt.
+        const width =
+          scaleMode === 'real'
+            ? outer - inner
+            : Math.max(outer - inner, inner * MIN_WIDTH_FRACTION)
         return (
           <mesh key={ring.name} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[inner, inner + width, 64]} />

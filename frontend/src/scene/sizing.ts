@@ -1,4 +1,5 @@
 import type { CelestialBody } from '../types'
+import type { ScaleMode } from '../state/reducer'
 
 /** Kilometer pro Astronomische Einheit (IAU-2012, exakt). */
 export const KM_PER_AU = 149_597_870.7
@@ -96,13 +97,22 @@ export function isStationary(body: CelestialBody): boolean {
  * Basis-Anzeigeradius in Scene-Units: physikalischer Radius (aus
  * physical_data.radius_km der API) × Übertreibung, nach unten durch die
  * Kategorie-Untergrenze begrenzt.
+ * Modus 'real' (Echtmaßstab 1:1): der physikalische Radius in AU, ohne
+ * Übertreibung und ohne Floor — Erde ist dann 4,3e-5 Units (in der
+ * Systemansicht unsichtbar, beim Fokus-Anflug echt).
  */
-export function baseRadiusUnits(body: CelestialBody): number {
+export function baseRadiusUnits(body: CelestialBody, mode: ScaleMode = 'planetarium'): number {
   const realAu = body.physical_data.radius_km / KM_PER_AU
+  if (mode === 'real') return realAu
   if (isStationary(body)) return realAu * EXAGGERATION.star
   const ex = EXAGGERATION[body.category] ?? EXAGGERATION.tno
   const floor = CATEGORY_FLOOR[body.category] ?? CATEGORY_FLOOR.tno
   return Math.max(realAu * ex, floor)
+}
+
+/** Mondbahn-Anzeigefaktor je Modus: Planetarium ×75, Echtmaßstab ×1 (echt). */
+export function moonOrbitScale(mode: ScaleMode): number {
+  return mode === 'real' ? 1 : MOON_ORBIT_EXAGGERATION
 }
 
 /**
@@ -129,7 +139,8 @@ export function screenFloorScale(
  * (Planeten): bei gefloorten Kleinkörpern läge ein echter Ring sonst
  * UNTER der sichtbaren Oberfläche.
  */
-export function ringRadiusUnits(body: CelestialBody, km: number): number {
+export function ringRadiusUnits(body: CelestialBody, km: number, mode: ScaleMode = 'planetarium'): number {
+  if (mode === 'real') return km / KM_PER_AU
   const ex = EXAGGERATION[body.category] ?? EXAGGERATION.tno
   return (km / KM_PER_AU) * ex
 }
