@@ -43,5 +43,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # 1 Worker + 8 Threads statt 2x4: SimpleCache lebt pro Worker-Prozess — mit
 # 2 Workern halbiert sich die Hit-Rate und Antworten unterscheiden sich je
-# nach getroffenem Worker. Numba/numpy geben das GIL frei, Threads reichen.
+# nach getroffenem Worker. Numba gibt das GIL nur mit nogil=True frei
+# (nbody.py @njit) — ohne das Flag friert ein langer N-Body-POST den
+# einzigen Worker samt Healthcheck ein. numpy gibt das GIL ebenfalls frei.
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "8", "--timeout", "600", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "app:app"]

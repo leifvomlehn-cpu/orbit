@@ -53,7 +53,12 @@ function Shell() {
   // Tastenkürzel (Leertaste, Pfeile, +/-, R, ESC)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      // Formular-Elemente und Buttons nicht übersteuern: Space auf einem
+      // fokussierten Button feuert nativ click — ein globales Play-Toggle
+      // hier würde doppelt schalten (Deep-Recon-Befund). closest() fängt
+      // auch Klicks auf SVGs/Spans innerhalb des Buttons.
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, button, [contenteditable]')) return
       switch (e.code) {
         case 'Space':
           e.preventDefault()

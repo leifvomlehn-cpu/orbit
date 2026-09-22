@@ -82,6 +82,10 @@ export function focusOnBody(
     return
   }
 
+  // Körperbezogener Nahanschlag (3D): nie IN den Körper hineinfahren.
+  // Ein globaler Wert wäre falsch — im Real-Modus liegen Sonne (4,7e-3 Units)
+  // und Erde (4,3e-5) Größenordnungen auseinander (Deep-Recon-Befund).
+  controls.minDistance = Math.max(radiusUnits * 1.1, 1e-9)
   tmpTarget.set(x, y, z)
   const dir = cam.position.clone().sub(tmpTarget)
   if (dir.lengthSq() < 1e-12) dir.set(0, 1, 0)

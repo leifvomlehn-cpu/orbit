@@ -141,7 +141,7 @@ def verlet_step(state: np.ndarray, gms: np.ndarray, dt: float) -> np.ndarray:
     return out
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, nogil=True)
 def _accelerations_jit(pos, gms, out):
     """In-place Beschleunigungs-Loop fuer Numba.
 
@@ -168,7 +168,7 @@ def _accelerations_jit(pos, gms, out):
             out[i, 2] += gms[j] * dz * inv_r3
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, nogil=True)
 def _verlet_integrate_jit(pos, vel, gms, dt, n_steps, sample_every,
                           snap_pos, snap_vel, snap_days):
     """Kompletter Verlet-Loop in einem JIT-Kernel.

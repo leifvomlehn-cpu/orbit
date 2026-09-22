@@ -65,6 +65,11 @@ from physics import (
     calculate_planet9_search_zone,
     calculate_tno_clustering
 )
+# nbody-Import bewusst am Modulkopf: das Modul-Ende von nbody.py feuert
+# _warmup_numba() — so kompiliert der JIT-Kernel beim gunicorn-Worker-Start
+# (start_period des Healthchecks) statt beim ersten User-POST (3-5 s Cold-Start
+# mitten im Request, Deep-Recon-Befund).
+from nbody import simulate_nbody, MAX_NBODY_STEPS, MAX_NBODY_SAMPLES
 
 # Configure logging
 logging.basicConfig(
@@ -495,8 +500,6 @@ def run_nbody_simulation() -> Response:
         step_days: float (0.01-365, default 1.0)
         sample_every: int (1-1000, default 1)
     """
-    from nbody import simulate_nbody, MAX_NBODY_STEPS, MAX_NBODY_SAMPLES
-
     # silent=True wie in run_simulation (Deep-Recon #3).
     data = request.get_json(silent=True)
     if not data:

@@ -9,8 +9,8 @@ describe('SimClock', () => {
     c.tick(1)
     expect(c.getSimMs()).toBe(0)
     c.setPlaying(true)
-    c.tick(1) // Default-Speed: 50 Tage/Sekunde
-    expect(c.getSimMs()).toBe(50 * MS_PER_DAY)
+    c.tick(1) // Default-Speed: 1 Tag/Sekunde (reducer.ts initialState)
+    expect(c.getSimMs()).toBe(MS_PER_DAY)
   })
 
   it('Speed wirkt linear auf die Simulationszeit', () => {
@@ -78,7 +78,7 @@ describe('SimClock', () => {
     const internals = c as unknown as { lastNotify: number }
     internals.lastNotify = Number.POSITIVE_INFINITY
     c.tick(1)
-    expect(c.getSimMs()).toBe(50 * MS_PER_DAY) // Live-Wert für den Render-Loop
+    expect(c.getSimMs()).toBe(MS_PER_DAY) // Live-Wert für den Render-Loop (Default 1 Tag/s)
     expect(c.getSnapshotMs()).toBe(0) // Snapshot unverändert
     c.setSimMs(1000) // notify → Snapshot folgt sofort
     expect(c.getSnapshotMs()).toBe(1000)

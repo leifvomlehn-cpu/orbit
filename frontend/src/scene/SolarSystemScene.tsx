@@ -56,7 +56,12 @@ export default function SolarSystemScene() {
             sichtbar, klar UNTER der Tagseiten-Helligkeit. */}
         <ambientLight intensity={0.08} />
         <pointLight position={[0, 0, 0]} intensity={2.5} decay={1} color="#fff5e0" />
-        <Stars radius={300} depth={100} count={lowQuality ? 1500 : 4000} factor={4} fade speed={0} />
+        {/* Sterne nur im Planetarium: die drei-Kugel (r=300) steht im
+            Echtmaßstab mitten im System (Sedna 937 AU, Kamera bis 3000) —
+            Sterne zwischen den Bahnen statt Himmel (Deep-Recon-Befund). */}
+        {scaleMode === 'planetarium' && (
+          <Stars radius={300} depth={100} count={lowQuality ? 1500 : 4000} factor={4} fade speed={0} />
+        )}
         <SimulationTicker />
         <CameraFocus />
         <CameraRig mode={viewMode} />
