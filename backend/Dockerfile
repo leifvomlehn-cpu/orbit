@@ -30,13 +30,19 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 
 COPY . .
 
-RUN mkdir -p /app/data
+# Non-root: eigener User + schreibbare Pfade. /app/data ist das Compose-Volume,
+# __pycache__ braucht numba für cache=True (sonst JIT-Recompile bei jedem Start).
+RUN groupadd -r orbit && useradd -r -g orbit -d /app orbit \
+    && mkdir -p /app/data \
+    && chown -R orbit:orbit /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     FLASK_APP=app.py
 
 EXPOSE 5000
+
+USER orbit
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget -q --spider http://localhost:5000/api/health || exit 1
