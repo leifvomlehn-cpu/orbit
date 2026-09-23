@@ -77,6 +77,20 @@ sudo docker compose up -d
 `--no-cache` ist auf DS918+ Pflicht bei Schema- oder Endpoint-Änderungen, sonst
 zieht der Build den alten Layer.
 
+**Einmalig bei der Umstellung auf non-root (Härtungs-Paket v1.2.x):** das Volume
+`orbital-data` stammt aus dem Root-Betrieb und gehört UID 0 — das Backend läuft
+jetzt als User `orbit` und bekäme auf dem alten Volume keine Schreibrechte. Es
+wird aktuell nicht beschrieben (Cache ist In-Memory), also einfach einmalig neu
+anlegen lassen — Docker initialisiert ein frisches Volume mit der
+Image-Ownership (`orbit:orbit`):
+
+```bash
+sudo docker compose down
+sudo docker volume rm orbital-simulator_orbital-data
+sudo docker compose build --no-cache
+sudo docker compose up -d
+```
+
 ---
 
 ## 🌐 Zugriff
